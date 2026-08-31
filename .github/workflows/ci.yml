@@ -1,0 +1,19 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+        working-directory: apps/backend
+      - run: npm run typecheck
+        working-directory: apps/backend
+      - run: npm ci
+        working-directory: apps/web
+      - run: npm run build
+        working-directory: apps/web
+      - run: docker build -t thunderledger-api-ci ./apps/backend
+      - run: docker build -t thunderledger-web-ci ./apps/web
