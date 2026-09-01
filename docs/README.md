@@ -1,0 +1,18 @@
+# ThunderLedger 文档目录
+
+这里集中维护 ThunderLedger 的产品需求、总体架构、研发路线和开发规范。
+
+```text
+docs/
+├─ product-requirements.md       产品需求基线
+├─ architecture/                 总体架构（Markdown + HTML）
+├─ roadmap/                      产品路线图（Markdown + HTML）
+├─ standards/                    开发规范、流程、模板和检查清单
+├─ changes/                      各批次设计、测试和变更记录
+├─ deployment.md                 部署说明
+└─ assets/                       文档及部署相关静态资源
+```
+
+阅读入口建议：先看 `product-requirements.md`，再看 `architecture/`、`roadmap/` 和 `deployment.md`；开发任务遵循 `standards/`，每个批次的实际记录放在 `changes/`。安全规范统一见 `standards/security.md`。
+
+Markdown 是维护和评审的事实来源，HTML 是路线图和架构图的浏览版本。
