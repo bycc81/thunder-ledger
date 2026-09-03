@@ -12,10 +12,7 @@
 
 ```powershell
 Copy-Item .env.example .env
-docker compose config
-docker compose build
-docker compose up --build -d
-docker compose ps
+.\scripts\start-local.ps1
 ```
 
 启动后检查：
@@ -24,7 +21,9 @@ docker compose ps
 - `GET /api/readyz` 在数据库可用时返回 200。
 - 浏览器可以打开后台登录页。
 
-停止服务使用 `docker compose down`。除非用户明确授权，不执行 `docker compose down -v`，避免删除数据库数据卷。
+停止服务使用 `.\scripts\stop-local.ps1`（内部执行 `docker compose down`）。除非用户明确授权，不执行 `docker compose down -v`，避免删除数据库数据卷。
+
+更新本地基础镜像并重新构建使用 `.\scripts\update-images.ps1`；该脚本不会自动启动服务，也不会删除数据卷。
 
 ## 数据库迁移
 

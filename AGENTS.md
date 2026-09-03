@@ -22,10 +22,13 @@ ThunderLedger 是 Vue + Fastify + PostgreSQL 的经营管理后台单体应用�
 
 - 流程：`docs/standards/ai-workflow.md`
 - 设计模板：`docs/standards/change-templates/design.md`
+- 产品定义模板：`docs/standards/change-templates/product-brief.md`
+- UX/UI 规格模板：`docs/standards/change-templates/ux-spec.md`
 - 测试模板：`docs/standards/change-templates/test-plan.md`
 - 自审清单：`docs/standards/checklists/review-checklist.md`
 - 前端规范：`docs/standards/frontend/frontend-guidelines.md`
 - 凡涉及 `apps/web`、Vue、TypeScript、Less、路由、页面、组件、表单、表格或视觉样式的任务，必须先读取并遵循 `docs/standards/frontend/frontend-guidelines.md`。
+- 新模块、新页面必须在技术设计前完成 Product/UX 和可运行 HTML 原型确认；已有页面小修不触发该阶段，明显改变布局、信息层级、主流程或操作路径时先询问用户是否需要原型。具体顺序以 `docs/standards/ai-workflow.md` 和 `ai-change-workflow` Skill 为准。
 - 部署说明：`docs/deployment.md`
 - 安全规范：`docs/standards/security.md`
 

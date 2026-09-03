@@ -15,10 +15,22 @@
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up --build
+.\scripts\start-local.ps1
 ```
 
-访问 `http://localhost`。
+访问 `http://localhost:8188`。
+
+停止本地服务（保留数据库数据卷）：
+
+```powershell
+.\scripts\stop-local.ps1
+```
+
+更新基础镜像并重新构建本地服务：
+
+```powershell
+.\scripts\update-images.ps1
+```
 
 ## 目录
 
