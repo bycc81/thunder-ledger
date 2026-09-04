@@ -33,6 +33,7 @@ export async function registerAssetRoutes(app: FastifyInstance): Promise<void> {
     if (!(await authenticate(request, reply))) return;
     const { assetId, objectKey, originalName, contentType, sizeBytes } = request.body ?? {};
     if (!assetId || !objectKey || !originalName || !contentType || !IMAGE_TYPES.has(contentType) || !Number.isInteger(sizeBytes) || sizeBytes! <= 0 || sizeBytes! > MAX_SIZE) return reply.code(400).send({ code: 'INVALID_IMAGE', message: '图片元数据无效' });
+    if (objectKey !== `assets/${assetId}`) return reply.code(400).send({ code: 'INVALID_IMAGE', message: '图片对象无效' });
     const user = request.user as { sub?: string };
     await getPool().query('INSERT INTO assets (id, object_key, original_name, content_type, size_bytes, status, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7)', [assetId, objectKey, originalName, contentType, sizeBytes, 'ready', user.sub ?? 'unknown']);
     return { assetId, status: 'ready' };
@@ -40,7 +41,8 @@ export async function registerAssetRoutes(app: FastifyInstance): Promise<void> {
 
   app.get<{ Params: { id: string } }>('/api/assets/:id/url', async (request, reply) => {
     if (!(await authenticate(request, reply))) return;
-    const row = (await getPool().query('SELECT object_key FROM assets WHERE id = $1 AND deleted_at IS NULL', [request.params.id])).rows[0] as { object_key?: string } | undefined;
+    const user = request.user as { sub?: string };
+    const row = (await getPool().query('SELECT object_key FROM assets WHERE id = $1 AND created_by = $2 AND deleted_at IS NULL', [request.params.id, user.sub ?? ''])).rows[0] as { object_key?: string } | undefined;
     const config = r2Config(); const s3 = client();
     if (!row?.object_key || !config || !s3) return reply.code(404).send({ code: 'ASSET_NOT_FOUND', message: '图片不存在' });
     return { url: await getSignedUrl(s3, new GetObjectCommand({ Bucket: config.bucket, Key: row.object_key }), { expiresIn: 600 }), expiresIn: 600 };
@@ -48,7 +50,8 @@ export async function registerAssetRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete<{ Params: { id: string } }>('/api/assets/:id', async (request, reply) => {
     if (!(await authenticate(request, reply))) return;
-    const row = (await getPool().query('SELECT object_key FROM assets WHERE id = $1 AND deleted_at IS NULL', [request.params.id])).rows[0] as { object_key?: string } | undefined;
+    const user = request.user as { sub?: string };
+    const row = (await getPool().query('SELECT object_key FROM assets WHERE id = $1 AND created_by = $2 AND deleted_at IS NULL', [request.params.id, user.sub ?? ''])).rows[0] as { object_key?: string } | undefined;
     const config = r2Config(); const s3 = client();
     if (!row?.object_key || !config || !s3) return reply.code(404).send({ code: 'ASSET_NOT_FOUND', message: '图片不存在' });
     await s3.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: row.object_key }));

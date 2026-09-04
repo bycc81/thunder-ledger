@@ -7,7 +7,10 @@ api.interceptors.request.use((config) => {
   return config;
 });
 api.interceptors.response.use(undefined, (error) => {
-  if (error.response?.status === 401) localStorage.removeItem('accessToken');
+  if (error.response?.status === 401) {
+    localStorage.removeItem('accessToken');
+    window.dispatchEvent(new CustomEvent('auth:expired'));
+  }
   return Promise.reject(error);
 });
 

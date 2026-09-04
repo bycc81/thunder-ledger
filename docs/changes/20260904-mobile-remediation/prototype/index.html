@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ThunderLedger 工作区概览原型</title>
+  <style>
+    :root { --bg:#f5f7fb; --surface:#fff; --ink:#172033; --body:#536078; --muted:#8993a7; --line:#e4e8f0; --primary:#3657c8; --primary-soft:#edf1ff; --success:#16794c; --success-soft:#e8f7ef; --danger:#b42318; --nav:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#e9edf5; color:var(--ink); font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    button,input { font:inherit; }
+    button { cursor:pointer; }
+    .app { width:min(100%,480px); min-height:100vh; margin:0 auto; padding-bottom:84px; background:var(--bg); }
+    .topbar { position:sticky; top:0; z-index:3; display:flex; align-items:center; justify-content:space-between; min-height:62px; padding:10px 16px; background:rgba(255,255,255,.97); border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:9px; min-width:0; }
+    .mark { display:grid; place-items:center; width:30px; height:30px; border-radius:8px; background:var(--primary); color:#fff; font-size:11px; font-weight:800; }
+    .brand strong,.brand small { display:block; }
+    .brand strong { font-size:13px; }
+    .brand small { margin-top:1px; color:var(--muted); font-size:10px; }
+    .workspace-switch { display:flex; align-items:center; gap:5px; min-height:42px; max-width:190px; padding:6px 10px; border:0; border-radius:9px; background:var(--primary-soft); color:var(--primary); font-weight:700; }
+    .workspace-switch span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    main { padding:20px 16px 28px; }
+    .page-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:22px; }
+    h1,h2,p { margin:0; }
+    h1 { margin-bottom:5px; font-size:23px; line-height:1.2; }
+    h2 { font-size:17px; line-height:1.3; }
+    .eyebrow { margin-bottom:5px; color:var(--muted); font-size:11px; }
+    .role { color:var(--body); font-size:12px; }
+    .primary,.secondary { min-height:44px; padding:0 14px; border-radius:8px; font-weight:700; }
+    .primary { border:1px solid var(--primary); background:var(--primary); color:#fff; }
+    .secondary { border:1px solid var(--line); background:var(--surface); color:var(--body); }
+    .stats { display:flex; gap:10px; overflow:auto; margin:0 -16px 28px; padding:0 16px 3px; scrollbar-width:none; }
+    .stats::-webkit-scrollbar { display:none; }
+    .stat { flex:0 0 132px; min-height:92px; padding:14px 12px; border-radius:10px; background:var(--surface); box-shadow:0 1px 0 var(--line); }
+    .stat small { color:var(--muted); font-size:11px; }
+    .stat strong { display:block; margin-top:8px; font-size:25px; line-height:1; }
+    .section { margin-bottom:25px; }
+    .section-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px; }
+    .text-button { min-height:44px; padding:0 4px; border:0; background:transparent; color:var(--primary); font-weight:700; }
+    .list { overflow:hidden; border-radius:10px; background:var(--surface); box-shadow:0 1px 0 var(--line); }
+    .list-item { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; width:100%; min-height:76px; padding:15px 14px; border:0; border-bottom:1px solid var(--line); background:var(--surface); color:inherit; text-align:left; }
+    .list-item:last-child { border-bottom:0; }
+    .list-item:active { background:var(--primary-soft); }
+    .item-main { min-width:0; padding-top:2px; }
+    .item-title { display:block; overflow:hidden; margin-bottom:5px; font-weight:750; text-overflow:ellipsis; white-space:nowrap; }
+    .item-meta { display:flex; flex-wrap:wrap; gap:5px 10px; color:var(--muted); font-size:11px; }
+    .item-side { display:flex; align-items:center; justify-content:flex-end; gap:7px; flex-shrink:0; }
+    .tag { display:inline-flex; align-items:center; min-height:24px; padding:2px 8px; border-radius:999px; background:#eef1f6; color:var(--body); font-size:12px; font-weight:700; }
+    .tag.open { background:var(--success-soft); color:var(--success); }
+    .chevron { color:var(--muted); font-size:20px; line-height:1; }
+    .command-list { overflow:hidden; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .command { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:58px; padding:8px 2px; border:0; border-bottom:1px solid var(--line); background:transparent; color:var(--ink); text-align:left; }
+    .command:last-child { border-bottom:0; }
+    .command-label { display:flex; align-items:center; gap:10px; font-weight:700; }
+    .command-icon { display:grid; place-items:center; width:32px; height:32px; border-radius:8px; background:var(--primary-soft); color:var(--primary); font-size:15px; }
+    .bottom-nav { position:fixed; right:0; bottom:0; left:0; z-index:4; display:grid; grid-template-columns:repeat(4,1fr); width:min(100%,480px); min-height:70px; margin:auto; padding-bottom:env(safe-area-inset-bottom); background:rgba(255,255,255,.98); border-top:1px solid var(--line); }
+    .bottom-nav button { display:grid; place-content:center; gap:3px; min-height:58px; border:0; background:transparent; color:var(--muted); font-size:11px; }
+    .bottom-nav button.active { color:var(--primary); font-weight:800; }
+    .nav-icon { font-size:18px; line-height:1; }
+    .overlay { position:fixed; inset:0; z-index:10; display:none; align-items:flex-end; background:#17203366; }
+    .overlay.open { display:flex; }
+    .dialog { width:min(480px,100%); max-height:88vh; overflow:auto; margin:0 auto; border-radius:16px 16px 0 0; background:var(--surface); }
+    .dialog-head { display:flex; align-items:center; justify-content:space-between; padding:16px; border-bottom:1px solid var(--line); }
+    .dialog-head h2 { margin:0; }
+    .close { width:44px; height:44px; border:0; background:transparent; color:var(--muted); font-size:24px; }
+    .dialog-body { padding:18px 16px; }
+    .field { display:grid; grid-template-columns:78px minmax(0,1fr); gap:10px; align-items:center; margin-bottom:14px; }
+    .field label { color:var(--body); font-size:13px; font-weight:700; text-align:right; }
+    .field input { width:100%; min-height:44px; padding:0 10px; border:1px solid var(--line); border-radius:7px; color:var(--ink); }
+    .dialog-foot { display:flex; gap:8px; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); }
+    .dialog-foot>* { flex:1; }
+    .picker-item { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:56px; padding:10px 16px; border:0; border-bottom:1px solid var(--line); background:#fff; text-align:left; }
+    .picker-item:last-child { border-bottom:0; }
+    .picker-role { color:var(--muted); font-size:12px; }
+    @media (min-width:700px) { .bottom-nav { right:auto; left:50%; transform:translateX(-50%); } .overlay { align-items:center; padding:24px; } .dialog { max-height:90vh; border-radius:16px; } }
+  </style>
+</head>
+<body>
+  <section class="app" data-ai-id="app-shell">
+    <header class="topbar" data-ai-id="topbar">
+      <div class="brand" data-ai-id="app-brand"><div class="mark">TL</div><div><strong>ThunderLedger</strong><small>工作台</small></div></div>
+      <button class="workspace-switch" data-ai-id="workspace-selector" id="workspace-open"><span>大枣一口</span><span>⌄</span></button>
+    </header>
+    <main data-ai-id="workspace-overview">
+      <section class="page-head" data-ai-id="workspace-header">
+        <div><p class="eyebrow">当前工作区</p><h1>大枣一口</h1><p class="role">所有者</p></div>
+        <button class="primary" data-ai-id="batch-create-overview" id="batch-create-open">新建批次</button>
+      </section>
+      <section class="stats" data-ai-id="workspace-stats">
+        <div class="stat"><small>成员</small><strong>1</strong></div>
+        <div class="stat"><small>批次</small><strong>2</strong></div>
+        <div class="stat"><small>操作记录</small><strong>7</strong></div>
+      </section>
+      <section class="section" data-ai-id="recent-batches">
+        <div class="section-head"><h2>最近批次</h2><button class="text-button" data-ai-id="recent-batches-more" data-nav="batches">查看全部</button></div>
+        <div class="list">
+          <button class="list-item" data-ai-id="batch-item-b2026spring" id="batch-open"><span class="item-main"><span class="item-title">春季清仓</span><span class="item-meta"><span>创建于 2026-09-01</span><span>所有者</span></span></span><span class="item-side"><span class="tag open">开放</span><span class="chevron">›</span></span></button>
+          <button class="list-item" data-ai-id="batch-item-b2026social"><span class="item-main"><span class="item-title">微博试卖</span><span class="item-meta"><span>创建于 2026-09-02</span><span>编辑者</span></span></span><span class="item-side"><span class="tag open">开放</span><span class="chevron">›</span></span></button>
+        </div>
+      </section>
+      <section class="section" data-ai-id="quick-actions">
+        <div class="section-head"><h2>快捷操作</h2></div>
+        <div class="command-list">
+          <button class="command" data-ai-id="quick-members" data-nav="members"><span class="command-label"><span class="command-icon">人</span>管理成员</span><span class="chevron">›</span></button>
+          <button class="command" data-ai-id="quick-batches" data-nav="batches"><span class="command-label"><span class="command-icon">批</span>查看批次</span><span class="chevron">›</span></button>
+          <button class="command" data-ai-id="quick-audit" data-nav="audit"><span class="command-label"><span class="command-icon">记</span>查看操作记录</span><span class="chevron">›</span></button>
+        </div>
+      </section>
+    </main>
+    <nav class="bottom-nav" aria-label="主导航" data-ai-id="bottom-navigation"><button class="active" data-ai-id="nav-workspace"><span class="nav-icon">⌂</span><span>工作区</span></button><button data-ai-id="nav-batches" data-nav="batches"><span class="nav-icon">▤</span><span>批次</span></button><button data-ai-id="nav-audit" data-nav="audit"><span class="nav-icon">◷</span><span>操作记录</span></button><button data-ai-id="nav-profile" data-nav="profile"><span class="nav-icon">●</span><span>我的</span></button></nav>
+  </section>
+
+  <div class="overlay" id="workspace-picker-overlay" data-ai-id="workspace-picker-overlay"><section class="dialog" role="dialog" aria-modal="true" data-ai-id="workspace-picker"><div class="dialog-head"><h2>切换工作区</h2><button class="close" data-close="workspace-picker-overlay" data-ai-id="workspace-picker-close" aria-label="关闭">×</button></div><button class="picker-item" data-ai-id="workspace-option-w1" data-close="workspace-picker-overlay"><span>大枣一口</span><span class="picker-role">所有者</span></button><button class="picker-item" data-ai-id="workspace-option-w2" data-close="workspace-picker-overlay"><span>春风协作</span><span class="picker-role">编辑者</span></button></section></div>
+  <div class="overlay" id="batch-create-dialog" data-ai-id="batch-create-overlay"><section class="dialog" role="dialog" aria-modal="true" data-ai-id="batch-create-dialog"><div class="dialog-head"><h2>新建批次</h2><button class="close" data-close="batch-create-dialog" data-ai-id="batch-create-close" aria-label="关闭">×</button></div><div class="dialog-body"><div class="field"><label for="batch-name">批次名称</label><input id="batch-name" data-ai-id="batch-create-name" placeholder="输入批次名称"></div></div><div class="dialog-foot"><button class="secondary" data-close="batch-create-dialog" data-ai-id="batch-create-cancel">取消</button><button class="primary" data-close="batch-create-dialog" data-ai-id="batch-create-submit">创建批次</button></div></section></div>
+  <div class="overlay" id="batch-detail-dialog" data-ai-id="batch-detail-overlay"><section class="dialog" role="dialog" aria-modal="true" data-ai-id="batch-detail-dialog"><div class="dialog-head"><div><h2>春季清仓</h2><span class="tag open">开放</span></div><button class="close" data-close="batch-detail-dialog" data-ai-id="batch-detail-close" aria-label="关闭">×</button></div><div class="dialog-body"><div class="field"><label for="detail-name">批次名称</label><input id="detail-name" value="春季清仓" data-ai-id="batch-detail-name"></div><div class="section-head"><h2>批次成员</h2><button class="secondary" data-ai-id="participant-add">添加参与人</button></div></div><div class="dialog-foot"><button class="secondary" data-close="batch-detail-dialog" data-ai-id="batch-detail-cancel">关闭</button><button class="primary" data-close="batch-detail-dialog" data-ai-id="batch-detail-save">保存信息</button></div></section></div>
+  <script>
+    const open = id => document.getElementById(id).classList.add('open');
+    const close = id => document.getElementById(id).classList.remove('open');
+    document.getElementById('workspace-open').addEventListener('click', () => open('workspace-picker-overlay'));
+    document.getElementById('batch-create-open').addEventListener('click', () => open('batch-create-dialog'));
+    document.getElementById('batch-open').addEventListener('click', () => open('batch-detail-dialog'));
+    document.addEventListener('click', event => {
+      const target = event.target.closest('[data-close]');
+      if (target) close(target.dataset.close);
+      const nav = event.target.closest('[data-nav]');
+      if (nav) alert('原型演示：进入' + nav.dataset.nav);
+    });
+    document.querySelectorAll('.overlay').forEach(overlay => overlay.addEventListener('click', event => { if (event.target === overlay) close(overlay.id); }));
+  </script>
+</body>
+</html>
