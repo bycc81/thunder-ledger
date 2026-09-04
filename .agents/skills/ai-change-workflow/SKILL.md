@@ -42,9 +42,9 @@ description: 用于 ThunderLedger 的功能开发、缺陷修复、重构、部�
 3. 基于已确认的产品定义提出页面方案，创建 `ux-spec.md` 和可运行的 `prototype/index.html`。
 4. 用户确认原型的页面结构、主流程和关键交互后，才创建或更新 `design.md`，再进入 Vue/后端实现。
 
-新模块/新页面必须使用 `docs/changes/YYYYMMDD-feature/` 目录，并包含 `product-brief.md`、`ux-spec.md`、`prototype/index.html`、`design.md`、`test-plan.md` 和 `changelog.md`。原型只使用原生 HTML/CSS/少量 JavaScript，可直接浏览器打开，不接真实 API。
+新模块/新页面必须使用 `docs/changes/YYYYMMDD-feature/` 目录，并包含 `product-brief.md`、`ux-spec.md`、`prototype/index.html`、`page-contract.md`、`data-ai-id-registry.md`、`design.md`、`test-plan.md` 和 `changelog.md`。原型只使用原生 HTML/CSS/少量 JavaScript，可直接浏览器打开，不接真实 API。
 
-已有页面的小范围样式、文案或字段调整不触发完整 Product/UX 流程。若已有页面优化明显改变布局、信息层级、主流程或操作路径，先询问用户是否需要原型；用户要求时才进入该阶段。截图仅用于留档、远程审查或视觉回归，不作为默认门禁。不默认读取 BMAD、OpenSpec 或其他外部项目全文。
+已有页面的小范围样式、文案或字段调整不触发完整 Product/UX 流程。若已有页面优化明显改变布局、信息层级、主流程或操作路径，先询问用户是否需要原型；用户要求时才进入该阶段。页面契约模板见 `docs/standards/change-templates/page-contract.md`，`data-ai-id` 通用规则见 `docs/standards/frontend/data-ai-id-guidelines.md`。截图仅用于留档、远程审查或视觉回归，不作为默认门禁。不默认读取 BMAD、OpenSpec 或其他外部项目全文。
 
 ### 5. 设计后实现
 

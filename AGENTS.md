@@ -25,10 +25,16 @@ ThunderLedger 是 Vue + Fastify + PostgreSQL 的经营管理后台单体应用�
 - 产品定义模板：`docs/standards/change-templates/product-brief.md`
 - UX/UI 规格模板：`docs/standards/change-templates/ux-spec.md`
 - 测试模板：`docs/standards/change-templates/test-plan.md`
+- 页面契约模板：`docs/standards/change-templates/page-contract.md`
 - 自审清单：`docs/standards/checklists/review-checklist.md`
-- 前端规范：`docs/standards/frontend/frontend-guidelines.md`
-- 凡涉及 `apps/web`、Vue、TypeScript、Less、路由、页面、组件、表单、表格或视觉样式的任务，必须先读取并遵循 `docs/standards/frontend/frontend-guidelines.md`。
-- 新模块、新页面必须在技术设计前完成 Product/UX 和可运行 HTML 原型确认；已有页面小修不触发该阶段，明显改变布局、信息层级、主流程或操作路径时先询问用户是否需要原型。具体顺序以 `docs/standards/ai-workflow.md` 和 `ai-change-workflow` Skill 为准。
+- 前端规范：`docs/standards/frontend/frontend-guidelines.md`（当前移动端规范）
+- 历史桌面端规范：`docs/standards/frontend/frontend-guidelines-pc-legacy.md`，仅用于追溯，不作为新页面实现依据。
+- 凡涉及 `apps/web`、Vue、TypeScript、Less、路由、页面、组件、表单、表格或视觉样式的任务，必须先读取并遵循当前移动端前端规范。
+- 关键业务 DOM 必须使用稳定的语义化 `data-ai-id`：页面区域、交互控件、弹窗、列表项和危险操作必填；命名使用 ASCII kebab-case；不得把用户输入直接拼入；不得用于 CSS；UI 改版需保留既有 ID。
+- `data-ai-id` 通用规则见 `docs/standards/frontend/data-ai-id-guidelines.md`；具体需求在变更目录维护 `data-ai-id-registry.md`。
+- 关键业务 DOM 必须使用稳定的语义化 `data-ai-id`：页面区域、交互控件、弹窗、列表项和危险操作必填；命名使用 ASCII kebab-case；不得把用户输入直接拼入；不得用于 CSS；UI 改版需保留既有 ID。
+- 前端任务涉及 `data-ai-id` 时，遵循 `docs/standards/frontend/data-ai-id-guidelines.md`，并在具体需求目录维护 `data-ai-id-registry.md`。
+- 新模块、新页面必须在技术设计前完成 Product/UX 和可运行 HTML 原型确认；确认后还必须建立页面数据/交互契约，再设计或调整 API。已有页面小修不触发该阶段，明显改变布局、信息层级、主流程或操作路径时先询问用户是否需要原型。具体顺序以 `docs/standards/ai-workflow.md` 和 `ai-change-workflow` Skill 为准。
 - 部署说明：`docs/deployment.md`
 - 安全规范：`docs/standards/security.md`
 
@@ -38,6 +44,7 @@ ThunderLedger 是 Vue + Fastify + PostgreSQL 的经营管理后台单体应用�
 - 修改文档后按 UTF-8 标准检查，确保内容和引用正确。
 - 文档目录或文件改名时，必须同步更新 `AGENTS.md`、相关 Skill、`docs/README.md`、规范文档和变更记录。
 - 文档引用只能指向仓库中实际存在的路径；个人预留资料若不属于交付范围，不纳入正式索引。
+- 移动端页面必须在目标视口完成截图、关键交互和 `data-ai-id` 三项验收；typecheck/build 不能替代页面验收。
 
 ## 交付最低验证
 

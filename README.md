@@ -18,7 +18,7 @@ Copy-Item .env.example .env
 .\scripts\start-local.ps1
 ```
 
-访问 `http://localhost:8188`。
+访问 `http://localhost:5174`。
 
 停止本地服务（保留数据库数据卷）：
 
