@@ -2,7 +2,7 @@
 
 本文件是原型确认后前后端共同使用的契约。接口仍面向工作区、批次等业务领域，不按页面组件拆分。
 
-本实例依据通用模板 [`docs/standards/change-templates/page-contract.md`](../../standards/change-templates/page-contract.md) 编写；后续原型迭代应同步更新本实例，而不是只修改 HTML。
+本实例保留其形成时的页面/API/权限契约；当前流程已将页面/API 契约并入 [`design.md`](../../standards/change-templates/design.md)，后续原型迭代应同步更新对应设计，而不是只修改 HTML。
 
 | 页面区域 | 原型 ID | 数据来源 | 权限 | 交互结果 |
 |---|---|---|---|---|

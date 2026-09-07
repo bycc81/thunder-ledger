@@ -17,6 +17,6 @@ docs/
 
 Markdown 是维护和评审的事实来源，HTML 是路线图和架构图的浏览版本。
 
-页面契约模板见 `standards/change-templates/page-contract.md`；`data-ai-id` 通用规范见 `standards/frontend/data-ai-id-guidelines.md`。具体需求在 `changes/` 下保留页面契约和 ID 注册表实例。
+新模块与新页面使用 `standards/change-templates/product-ux.md` 记录产品与 UX 定义；页面/API 契约是 `standards/change-templates/design.md` 的章节。`data-ai-id` 通用规范见 `standards/frontend/data-ai-id-guidelines.md`，具体前端需求在 `changes/` 下保留 ID 注册表实例。
 
-已完成的 B1 移动端迁移记录见 `changes/20260904-mobile-migration/`；收口验收、设计先行契约、页面/API 契约、`data-ai-id` 注册表和可运行原型见 `changes/20260904-mobile-remediation/`。下一阶段 B2 必须沿用该流程。
+已完成的 B1 移动端迁移记录见 `changes/20260904-mobile-migration/`；收口验收和历史页面/API 契约见 `changes/20260904-mobile-remediation/`。B2 商品目录已采用精简后的产品/UX 与技术设计流程。
