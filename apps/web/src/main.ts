@@ -33,7 +33,6 @@ import BatchDetailPage from './pages/BatchDetailPage.vue';
 import MembersPage from './pages/MembersPage.vue';
 import OperationRecordsPage from './pages/OperationRecordsPage.vue';
 import ProfilePage from './pages/ProfilePage.vue';
-import PlaceholderPage from './pages/PlaceholderPage.vue';
 const router = createRouter({
   history: createWebHistory(),
   routes: [

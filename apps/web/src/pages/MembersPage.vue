@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant';
+import { showFailToast, showSuccessToast } from 'vant';
 import { useRouter } from 'vue-router';
 import { api } from '../api';
 import MobileShell from '../layouts/MobileShell.vue';
 import { useAuthStore } from '../stores/auth';
 import { useWorkspaceStore, type Member, type WorkspaceRole } from '../stores/workspace';
+import DangerConfirmDialog from '../components/DangerConfirmDialog.vue';
 
 type Page = 'overview' | 'batches' | 'members' | 'audit' | 'profile';
 const router = useRouter();
@@ -22,6 +23,8 @@ const selectedRole = ref<Exclude<WorkspaceRole, 'owner'>>('viewer');
 const inviteToken = ref('');
 const submitting = ref(false);
 const removingId = ref('');
+const pendingRemoval = ref<Member | null>(null);
+const showRemovalConfirm = ref(false);
 const roleOptions = [{ text: '管理员', value: 'admin' }, { text: '编辑者', value: 'editor' }, { text: '查看者', value: 'viewer' }];
 
 const roleText = (role: WorkspaceRole) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role]);
@@ -53,12 +56,16 @@ async function saveRole() {
   catch { showFailToast('角色更新失败'); }
   finally { submitting.value = false; }
 }
-async function removeMember(member: Member) {
-  if (!store.selectedWorkspaceId || member.role === 'owner') return;
-  try { await showConfirmDialog({ title: '移除成员', message: `移除 ${member.username} 后将失去当前工作区访问权限。`, confirmButtonText: '移除', confirmButtonColor: '#b42318' }); }
-  catch { return; }
+function requestRemoveMember(member: Member) {
+  if (member.role === 'owner') return;
+  pendingRemoval.value = member;
+  showRemovalConfirm.value = true;
+}
+async function removeMember() {
+  const member = pendingRemoval.value;
+  if (!store.selectedWorkspaceId || !member) return;
   removingId.value = member.id;
-  try { await api.delete(`/workspaces/${store.selectedWorkspaceId}/members/${member.id}`); await store.loadScoped(); showSuccessToast('成员已移除'); }
+  try { await api.delete(`/workspaces/${store.selectedWorkspaceId}/members/${member.id}`); await store.loadScoped(); showRemovalConfirm.value = false; pendingRemoval.value = null; showSuccessToast('成员已移除'); }
   catch { showFailToast('成员移除失败'); }
   finally { removingId.value = ''; }
 }
@@ -74,7 +81,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
       <div v-else class="member-list" data-ai-id="member-list">
         <article v-for="member in store.members" :key="member.id" class="member-item" :data-ai-id="`member-item-${member.id}`">
           <div class="member-main"><strong>{{ member.username }}</strong><div class="member-meta"><van-tag :type="member.role === 'owner' ? 'primary' : member.role === 'admin' ? 'warning' : 'default'">{{ roleText(member.role) }}</van-tag><span>邀请时间 {{ formatDate(member.invited_at) }}</span></div></div>
-          <div v-if="member.role !== 'owner' && store.canManageWorkspace" class="member-actions"><van-button class="member-action" size="small" plain :data-ai-id="`member-role-${member.id}`" @click="openRole(member)">角色</van-button><van-button class="member-action danger-action" size="small" plain type="danger" :loading="removingId === member.id" :data-ai-id="`member-remove-${member.id}`" @click="removeMember(member)">移除</van-button></div>
+          <div v-if="member.role !== 'owner' && store.canManageWorkspace" class="member-actions"><van-button class="member-action" size="small" plain :data-ai-id="`member-role-${member.id}`" @click="openRole(member)">角色</van-button><van-button class="member-action danger-action" size="small" plain type="danger" :loading="removingId === member.id" :data-ai-id="`member-remove-${member.id}`" @click="requestRemoveMember(member)">移除</van-button></div>
         </article>
       </div>
     </section>
@@ -88,6 +95,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
   </van-dialog>
   <van-popup v-model:show="showInviteRole" position="bottom" round data-ai-id="member-invite-role-picker"><van-picker title="选择工作区角色" :columns="roleOptions" :columns-field-names="{ text: 'text', value: 'value' }" @confirm="chooseInviteRole" @cancel="showInviteRole = false" /></van-popup>
   <van-popup v-model:show="showMemberRole" position="bottom" round data-ai-id="member-role-picker"><van-picker title="调整成员角色" :columns="roleOptions" :columns-field-names="{ text: 'text', value: 'value' }" @confirm="chooseMemberRole" @cancel="showMemberRole = false" /></van-popup>
+  <DangerConfirmDialog v-model:show="showRemovalConfirm" title="移除成员" :message="pendingRemoval ? `移除 ${pendingRemoval.username} 后将失去当前工作区访问权限。` : ''" confirm-text="移除" ai-id="member-remove-confirm" :loading="Boolean(removingId)" @confirm="removeMember" />
 </template>
 
 <style scoped>

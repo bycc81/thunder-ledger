@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant';
+import { showFailToast, showSuccessToast } from 'vant';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../api';
 import { useWorkspaceStore, type Batch, type BatchMember, type BatchRole } from '../stores/workspace';
+import DangerConfirmDialog from '../components/DangerConfirmDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -19,6 +20,8 @@ const showMemberPicker = ref(false);
 const participantUserId = ref('');
 const participantRole = ref<Exclude<BatchRole, 'owner'>>('editor');
 const removingId = ref('');
+const pendingRemoval = ref<BatchMember | null>(null);
+const showRemovalConfirm = ref(false);
 
 const canManage = computed(() => Boolean(batch.value && (batch.value.role === 'owner' || store.canManageWorkspace)));
 const roleText = (role: BatchRole) => ({ owner: '所有者', editor: '编辑者', viewer: '查看者' }[role]);
@@ -56,12 +59,16 @@ async function updateRole(member: BatchMember, role: BatchRole) {
   try { await api.patch(`/batches/${batch.value.id}/members/${member.id}`, { role }); member.role = role; showSuccessToast('角色已更新'); }
   catch { showFailToast('角色更新失败'); }
 }
-async function removeParticipant(member: BatchMember) {
-  if (!batch.value || member.role === 'owner') return;
-  try { await showConfirmDialog({ title: '移除参与人', message: `移除 ${member.username} 后将不能访问此批次。`, confirmButtonText: '移除', confirmButtonColor: '#b42318' }); }
-  catch { return; }
+function requestRemoveParticipant(member: BatchMember) {
+  if (member.role === 'owner') return;
+  pendingRemoval.value = member;
+  showRemovalConfirm.value = true;
+}
+async function removeParticipant() {
+  const member = pendingRemoval.value;
+  if (!batch.value || !member) return;
   removingId.value = member.id;
-  try { await api.delete(`/batches/${batch.value.id}/members/${member.id}`); members.value = members.value.filter((item) => item.id !== member.id); showSuccessToast('参与人已移除'); }
+  try { await api.delete(`/batches/${batch.value.id}/members/${member.id}`); members.value = members.value.filter((item) => item.id !== member.id); showRemovalConfirm.value = false; pendingRemoval.value = null; showSuccessToast('参与人已移除'); }
   catch { showFailToast('参与人移除失败'); }
   finally { removingId.value = ''; }
 }
@@ -83,7 +90,7 @@ onMounted(load);
       <section class="detail-section" data-ai-id="batch-detail-form"><h2>基本信息</h2><van-field v-model="name" label="批次名称" :readonly="!canManage" data-ai-id="batch-detail-name" /></section>
       <section class="detail-section" data-ai-id="batch-member-list"><div class="section-head"><h2>批次成员</h2><van-button v-if="canManage" class="compact-button" type="primary" size="small" data-ai-id="participant-add" @click="showParticipant = true">添加参与人</van-button></div>
         <van-empty v-if="!members.length" description="暂无参与人" data-ai-id="batch-member-empty" />
-        <div v-else class="member-list"><div v-for="member in members" :key="member.id" class="member-item" :data-ai-id="`batch-member-item-${member.id}`"><div class="member-main"><strong>{{ member.username }}</strong><span><van-tag :type="member.role === 'owner' ? 'primary' : member.role === 'editor' ? 'warning' : 'default'">{{ roleText(member.role) }}</van-tag><small>加入时间 {{ formatDate(member.created_at) }}</small></span></div><div v-if="member.role !== 'owner' && canManage" class="member-actions"><van-popover placement="top-end" :actions="[{ text: '编辑者' }, { text: '查看者' }]" @select="(action) => updateRole(member, action.text === '编辑者' ? 'editor' : 'viewer')"><van-button class="member-action" size="small" plain :data-ai-id="`batch-member-role-${member.id}`">角色</van-button></van-popover><van-button class="member-action danger-action" size="small" plain type="danger" :loading="removingId === member.id" :data-ai-id="`batch-member-remove-${member.id}`" @click="removeParticipant(member)">移除</van-button></div></div></div>
+        <div v-else class="member-list"><div v-for="member in members" :key="member.id" class="member-item" :data-ai-id="`batch-member-item-${member.id}`"><div class="member-main"><strong>{{ member.username }}</strong><span><van-tag :type="member.role === 'owner' ? 'primary' : member.role === 'editor' ? 'warning' : 'default'">{{ roleText(member.role) }}</van-tag><small>加入时间 {{ formatDate(member.created_at) }}</small></span></div><div v-if="member.role !== 'owner' && canManage" class="member-actions"><van-popover placement="top-end" :actions="[{ text: '编辑者' }, { text: '查看者' }]" @select="(action) => updateRole(member, action.text === '编辑者' ? 'editor' : 'viewer')"><van-button class="member-action" size="small" plain :data-ai-id="`batch-member-role-${member.id}`">角色</van-button></van-popover><van-button class="member-action danger-action" size="small" plain type="danger" :loading="removingId === member.id" :data-ai-id="`batch-member-remove-${member.id}`" @click="requestRemoveParticipant(member)">移除</van-button></div></div></div>
       </section>
       <div v-if="canManage" class="detail-footer"><van-button block type="primary" :loading="saving" data-ai-id="batch-detail-save" @click="save">保存信息</van-button></div>
     </main>
@@ -94,6 +101,7 @@ onMounted(load);
     <van-field v-model="participantRole" label="批次角色" readonly data-ai-id="participant-role" />
   </van-dialog>
   <van-popup v-model:show="showMemberPicker" position="bottom" round data-ai-id="participant-member-picker"><van-picker title="选择成员" :columns="memberOptions" @confirm="chooseMember" @cancel="showMemberPicker = false" /></van-popup>
+  <DangerConfirmDialog v-model:show="showRemovalConfirm" title="移除参与人" :message="pendingRemoval ? `移除 ${pendingRemoval.username} 后将不能访问此批次。` : ''" confirm-text="移除" ai-id="participant-remove-confirm" :loading="Boolean(removingId)" @confirm="removeParticipant" />
 </template>
 
 <style scoped>

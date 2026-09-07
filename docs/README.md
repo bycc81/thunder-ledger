@@ -19,4 +19,4 @@ Markdown 是维护和评审的事实来源，HTML 是路线图和架构图的浏
 
 页面契约模板见 `standards/change-templates/page-contract.md`；`data-ai-id` 通用规范见 `standards/frontend/data-ai-id-guidelines.md`。具体需求在 `changes/` 下保留页面契约和 ID 注册表实例。
 
-当前 B1 移动端迁移记录见 `changes/20260904-mobile-migration/`；移动端黄金页面整改和设计先行契约见 `changes/20260904-mobile-remediation/`，其中包含 Product/UX 文档、页面/API 契约、`data-ai-id` 注册表和可运行原型。
+已完成的 B1 移动端迁移记录见 `changes/20260904-mobile-migration/`；收口验收、设计先行契约、页面/API 契约、`data-ai-id` 注册表和可运行原型见 `changes/20260904-mobile-remediation/`。下一阶段 B2 必须沿用该流程。
