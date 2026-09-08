@@ -2,7 +2,7 @@
 
 本流程面向单人维护、低并发的经营管理后台。目标是快速交付，同时保证认证、数据、部署和界面质量。
 
-新模块和新页面使用以下前置流程：**需求探索 → 产品定义 → UX/UI 规格 → HTML 原型 → 用户确认 → 页面数据/交互契约 → API 设计 → 技术设计 → 实现 → 集成验证 → 视觉验收**。普通页面小修、文案、字段或局部样式调整仍按风险等级走轻量流程。
+新模块和新页面使用以下前置流程：**需求探索 → 产品与 UX 定义 → HTML 原型 → 用户确认 → 含页面/API 契约的技术设计 → 实现 → 集成验证 → 视觉验收**。普通页面小修、文案、字段或局部样式调整仍按风险等级走轻量流程。
 
 ## 1. 风险分级
 
@@ -33,12 +33,10 @@
 
 新模块和新页面必须在技术设计前完成本阶段。AI 先提出方案；用户只确认产品目标、主流程、页面方向和关键交互。
 
-1. 产品定义：用户确认目标、用户流程和关键边界后，使用 `docs/standards/change-templates/product-brief.md` 记录用户、问题、范围、业务规则、页面清单及 `Requirement + Scenario + WHEN/THEN` 场景。
-2. UX/UI 规格：使用 `docs/standards/change-templates/ux-spec.md` 记录页面地图、信息层级、操作层级、控件、状态、响应式和页面验收。
-3. HTML 原型：在变更目录创建 `prototype/index.html`。原型只使用原生 HTML/CSS/少量 JavaScript，可直接浏览器打开，不接真实 API；至少展示主流程和关键状态。
-4. 用户确认：用户确认原型的页面结构、主流程和关键交互后，才能进入技术设计和 Vue 实现。UX 或原型未确认时，不得编写 Vue 页面。
-
-5. 页面数据与交互契约：在 API 设计前，使用 `docs/standards/change-templates/page-contract.md` 逐页列出字段、操作、权限、加载/空/错误状态、成功结果和稳定的 `data-ai-id`。页面契约未确认时，不得新增或调整 API。
+1. 产品与 UX 定义：用户确认目标、用户流程和关键边界后，使用 `docs/standards/change-templates/product-ux.md` 记录用户、问题、范围、业务规则、场景、页面地图、信息层级、控件、状态、响应式和页面验收。
+2. HTML 原型：在变更目录创建 `prototype/index.html`。原型只使用原生 HTML/CSS/少量 JavaScript，可直接浏览器打开，不接真实 API；至少展示主流程和关键状态。
+3. 用户确认：用户确认原型的页面结构、主流程和关键交互后，才能进入技术设计和 Vue 实现。产品与 UX 或原型未确认时，不得编写 Vue 页面。
+4. 页面/API 契约：在 API 设计前，于 `design.md` 的“页面/API 契约”章节逐页列出字段、操作、权限、加载/空/错误状态、成功结果、接口边界和稳定的 `data-ai-id` 绑定。该章节未确认时，不得新增或调整 API。
 
 已有页面的小范围样式、文案、字段调整不创建原型。已有页面的优化若明显改变布局、信息层级、主流程或操作路径，AI 必须先询问用户是否需要原型；用户提出需要时才进入本阶段。
 
@@ -48,15 +46,15 @@
 
 ```text
 docs/changes/YYYYMMDD-feature/
-  product-brief.md
-  ux-spec.md
+  product-ux.md
   prototype/index.html
+  data-ai-id-registry.md
   design.md
-  test-plan.md
-  changelog.md
+  test-plan.md                   # 仅 L2
+  changelog.md                   # 多阶段或持续记录时使用
 ```
 
-页面/API 契约使用 `docs/standards/change-templates/page-contract.md` 模板，具体需求在变更目录保存 `page-contract.md` 实例；语义化定位通用规则使用 `docs/standards/frontend/data-ai-id-guidelines.md`，具体需求保存 `data-ai-id-registry.md` 实例。外部参考项目必须记录版本、具体文件、借鉴点和不复制范围；只有链接而没有版本和文件清单时，不得作为实现依据。
+`product-ux.md`、`prototype/index.html` 和 `design.md` 是新模块/新页面的必需记录；前端页面另有 `data-ai-id-registry.md`，`test-plan.md` 仅 L2 必需，`changelog.md` 仅多阶段或需要持续记录时使用。语义化定位通用规则使用 `docs/standards/frontend/data-ai-id-guidelines.md`。外部参考项目必须记录版本、具体文件、借鉴点和不复制范围；只有链接而没有版本和文件清单时，不得作为实现依据。
 
 ## 4. 技术设计与实现
 
@@ -64,7 +62,7 @@ docs/changes/YYYYMMDD-feature/
 - L1：先写简短变更说明（目标、影响、验收），再实现；必要时补测试。
 - L2：使用 `docs/standards/change-templates/design.md` 写设计记录，并用 `docs/standards/change-templates/test-plan.md` 列出验证；明确数据流、权限、迁移、回滚和残留风险。
 
-新模块和新页面的 `design.md` 必须引用已确认的 `product-brief.md`、`ux-spec.md` 和 `prototype/index.html`。技术设计只决定 API、数据、权限、组件、路由、测试和部署，不重新定义已确认的用户流程、页面主操作或关键交互。
+新模块和新页面的 `design.md` 必须引用已确认的 `product-ux.md` 和 `prototype/index.html`，并在其页面/API 契约章节维护技术事实。技术设计只决定 API、数据、权限、组件、路由、测试和部署，不重新定义已确认的用户流程、页面主操作或关键交互。
 
 实现时优先复用现有代码和契约，不为了未来场景提前引入服务、队列或复杂抽象。新增 SQL 必须有清晰的中文注释、表/字段说明和可重复迁移；敏感值不得写入代码或文档示例。
 
@@ -78,13 +76,15 @@ docs/changes/YYYYMMDD-feature/
 - 容器/部署：`docker compose config`、`docker compose build`、健康检查
 - 页面交互：补目标页面人工检查或可复现步骤；构建通过不等于交互正确
 - 移动端视觉：至少检查 390×844 和 430×932，确认无横向溢出、遮挡、拥挤和主操作错位。
-- 页面契约：扫描 `data-ai-id`，确认实现 ID 与原型注册表一致，重复项包含稳定业务 ID。
+- 页面/API 契约：扫描 `data-ai-id`，确认实现 ID 与原型注册表一致，重复项包含稳定业务 ID。
 
 测试失败时可自动修复并重跑相关命令；连续三轮失败就停止自动修复，记录原因和替代验证。不要机械运行与改动无关的全量检查。
 
 ## 6. 高风险确认
 
 涉及生产发布、删除/重置数据、不可逆迁移、权限放开、收益规则或安全策略生效时，先停在执行前，把影响、备份/回滚和验证结果告诉用户，获得明确确认后再执行。普通本地开发不等待额外审批。
+
+Git 提交、推送、变基、重写历史及其他改变 Git 历史或远端状态的操作，也必须获得用户明确指令；完成修改和验证后默认只报告工作区状态。
 
 ## 7. 交付自审
 
@@ -103,5 +103,5 @@ docs/changes/YYYYMMDD-feature/
 - 不把未实现的专属平台组件或高并发架构写成当前系统要求。
 - 不提交密码、Token、连接串或真实用户隐私。
 - 不在没有设计和确认的情况下执行生产或不可逆数据操作。
-- 不在未确认的 UX 规格和 HTML 原型基础上直接编写新页面或新模块的 Vue 实现。
+- 不在未确认的产品与 UX 定义和 HTML 原型基础上直接编写新页面或新模块的 Vue 实现。
 - 不把 typecheck/build 结果冒充完整业务验收。

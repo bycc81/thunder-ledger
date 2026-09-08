@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant';
+import { showFailToast, showSuccessToast } from 'vant';
 import { useRouter } from 'vue-router';
 import { api } from '../api';
 import MobileShell from '../layouts/MobileShell.vue';
 import { useAuthStore } from '../stores/auth';
 import { useWorkspaceStore, type Batch, type BatchMember, type WorkspaceRole } from '../stores/workspace';
+import DangerConfirmDialog from '../components/DangerConfirmDialog.vue';
+import { formatDateTime } from '../utils/dateTime';
 
-type Page = 'overview' | 'batches' | 'members' | 'audit' | 'profile';
+type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
 const router = useRouter();
 const auth = useAuthStore();
 const store = useWorkspaceStore();
@@ -17,9 +19,11 @@ const showWorkspace = ref(false);
 const showCreate = ref(false);
 const batchName = ref('');
 const deletingId = ref('');
+const pendingDelete = ref<Batch | null>(null);
+const showDeleteConfirm = ref(false);
 
 const roleText = (role: WorkspaceRole | BatchMember['role']) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role]);
-const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short', hour12: false }).format(new Date(value)) : '--';
+const formatDate = formatDateTime;
 const filteredBatches = computed(() => store.batches.filter((batch) => {
   const keyword = search.value.trim().toLowerCase();
   return (!keyword || batch.name.toLowerCase().includes(keyword)) && (status.value === 'all' || batch.status === status.value);
@@ -37,14 +41,16 @@ async function createBatch() {
     showSuccessToast('批次已创建');
   } catch { showFailToast('批次创建失败'); }
 }
-async function deleteBatch(batch: Batch) {
-  try {
-    await showConfirmDialog({ title: '删除批次', message: `删除“${batch.name}”后将不再显示，确认继续？`, confirmButtonText: '删除', confirmButtonColor: '#b42318' });
-  } catch { return; }
+function requestDelete(batch: Batch) { pendingDelete.value = batch; showDeleteConfirm.value = true; }
+async function deleteBatch() {
+  const batch = pendingDelete.value;
+  if (!batch) return;
   deletingId.value = batch.id;
   try {
     await api.delete(`/batches/${batch.id}`);
     await store.loadScoped();
+    showDeleteConfirm.value = false;
+    pendingDelete.value = null;
     showSuccessToast('批次已删除');
   } catch { showFailToast('批次删除失败'); }
   finally { deletingId.value = ''; }
@@ -69,7 +75,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
       <div v-else class="batch-list" data-ai-id="batch-list">
         <article v-for="batch in filteredBatches" :key="batch.id" class="batch-item" :data-ai-id="`batch-item-${batch.id}`" tabindex="0" @click="router.push(`/batches/${batch.id}`)" @keydown.enter="router.push(`/batches/${batch.id}`)">
           <div class="batch-main"><span class="batch-title">{{ batch.name }}</span><span class="batch-meta">创建于 {{ formatDate(batch.created_at) }} · {{ roleText(batch.role) }}</span></div>
-          <div class="batch-side"><van-tag :type="batch.status === 'open' ? 'success' : 'default'">{{ batch.status === 'open' ? '开放' : '已关闭' }}</van-tag><van-popover v-if="batch.role === 'owner' || store.canManageWorkspace" placement="left-start" :actions="[{ text: '删除批次', danger: true }]" @select="deleteBatch(batch)"><van-button class="more-button" icon="ellipsis" plain type="default" :loading="deletingId === batch.id" :data-ai-id="`batch-more-${batch.id}`" @click.stop /></van-popover><van-icon name="arrow" class="batch-arrow" /></div>
+          <div class="batch-side"><van-tag :type="batch.status === 'open' ? 'success' : 'default'">{{ batch.status === 'open' ? '开放' : '已关闭' }}</van-tag><van-popover v-if="batch.role === 'owner' || store.canManageWorkspace" placement="left-start" :actions="[{ text: '删除批次', danger: true }]" @select="requestDelete(batch)"><van-button class="more-button" icon="ellipsis" plain type="default" :loading="deletingId === batch.id" :data-ai-id="`batch-more-${batch.id}`" @click.stop /></van-popover><van-icon name="arrow" class="batch-arrow" /></div>
         </article>
       </div>
     </section>
@@ -82,6 +88,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
   <van-dialog v-model:show="showCreate" title="新建批次" show-cancel-button data-ai-id="batch-create-dialog" @confirm="createBatch">
     <van-field v-model="batchName" label="名称" placeholder="批次名称" data-ai-id="batch-create-name" />
   </van-dialog>
+  <DangerConfirmDialog v-model:show="showDeleteConfirm" title="删除批次" :message="pendingDelete ? `删除“${pendingDelete.name}”后将不再显示，确认继续？` : ''" confirm-text="删除" ai-id="batch-delete-confirm" :loading="Boolean(deletingId)" @confirm="deleteBatch" />
 </template>
 
 <style scoped>

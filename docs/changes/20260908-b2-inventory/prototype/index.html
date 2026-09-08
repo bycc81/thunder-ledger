@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>B2 库存原型</title>
+  <style>
+    :root { color:#172033; background:#f5f7fb; font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    * { box-sizing:border-box; } body { margin:0; } button,input,select { font:inherit; } button { min-height:44px; border:0; border-radius:8px; padding:0 14px; background:#3657c8; color:#fff; cursor:pointer; } button.secondary { background:#fff; color:#3657c8; border:1px solid #cfd6e2; } button.danger { background:#b42318; }
+    .app { max-width:480px; min-height:100vh; margin:auto; padding-bottom:24px; background:#f5f7fb; } header { position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; height:56px; padding:0 16px; border-bottom:1px solid #e4e8f0; background:#fff; z-index:2; } main { padding:20px 16px; } h1 { margin:0; font-size:21px; } h2 { margin:0; font-size:16px; } .muted { color:#71809a; font-size:12px; } .notice { padding:10px 12px; border-radius:8px; background:#edf1ff; color:#2949aa; } .toolbar,.actions { display:flex; gap:8px; align-items:center; justify-content:space-between; margin:16px 0; } .card,.row { background:#fff; border:1px solid #e4e8f0; border-radius:10px; } .row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:72px; padding:12px; margin-top:8px; cursor:pointer; } .row strong,.row span { display:block; } .amount { color:#3657c8; font-weight:700; } .summary { display:grid; grid-template-columns:1fr 1fr; gap:1px; overflow:hidden; margin:16px 0; background:#e4e8f0; border-radius:10px; } .summary div { padding:12px; background:#fff; } .summary strong { display:block; margin-top:4px; font-size:18px; } .form { display:grid; gap:14px; } label { display:grid; gap:6px; color:#536078; font-weight:600; } input,select { width:100%; min-height:44px; padding:0 10px; border:1px solid #cfd6e2; border-radius:8px; background:#fff; color:#172033; } .hidden { display:none; } .modal { position:fixed; inset:0; display:grid; place-items:end center; padding:16px; background:rgb(23 32 51 / .42); } .modal .card { width:min(448px,100%); padding:16px; } .modal .actions { justify-content:flex-end; } .back { padding:0; min-height:44px; background:transparent; color:#3657c8; } .tag { padding:2px 7px; border-radius:99px; background:#edf1ff; color:#2949aa; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="app" data-ai-id="inventory-prototype">
+    <header><button class="back" data-ai-id="prototype-back" onclick="show('list')">‹ 批次详情</button><strong>九月小卡批次</strong><span></span></header>
+    <main id="list" data-ai-id="inventory-list-page">
+      <div class="notice">同一种商品合并在一起卖；每次从哪里买、谁付款都会保留。</div>
+      <div class="toolbar" data-ai-id="inventory-list-header"><div><h1>库存</h1><span class="muted">2 种商品 · 可售 5 张</span></div><button data-ai-id="inventory-purchase-create" onclick="show('form')">新增采购</button></div>
+      <section data-ai-id="inventory-list">
+        <article class="row" data-ai-id="inventory-item-demo-card" onclick="show('detail')"><div><strong>星穹铁道 · 丹恒小卡</strong><span class="muted">2 条采购明细 · 总成本 ¥130.0</span></div><div><span class="amount">可售 2 张</span><span class="muted">›</span></div></article>
+        <article class="row"><div><strong>原神 · 枫原万叶小卡</strong><span class="muted">1 条采购明细 · 总成本 ¥45.0</span></div><div><span class="amount">可售 3 张</span><span class="muted">›</span></div></article>
+      </section>
+    </main>
+    <main id="detail" class="hidden" data-ai-id="inventory-detail-page">
+      <button class="back" onclick="show('list')">‹ 返回库存</button><h1>丹恒小卡</h1>
+      <section class="summary" data-ai-id="inventory-summary"><div><span class="muted">可售数量</span><strong>2 张</strong></div><div><span class="muted">采购总成本</span><strong>¥130.0</strong></div></section>
+      <div class="toolbar"><h2>采购记录</h2><button class="secondary" data-ai-id="inventory-writeoff-create" onclick="openVoid()">减少库存</button></div>
+      <section data-ai-id="inventory-purchase-list"><article class="row" data-ai-id="inventory-purchase-item-demo-a"><div><strong>渠道 1 · A 付款</strong><span class="muted">2026-09-08 · 1 张 · ¥60.0</span></div><button class="secondary" data-ai-id="inventory-purchase-edit-demo-a" onclick="show('form')">编辑</button></article><article class="row" data-ai-id="inventory-purchase-item-demo-b"><div><strong>渠道 2 · B 付款</strong><span class="muted">2026-09-08 · 1 张 · ¥70.0</span></div><button class="secondary" onclick="show('form')">编辑</button></article></section>
+      <p class="muted">卖出后不能直接改数量；商品损坏或丢失时可减少库存。卖出前可直接编辑采购。</p>
+    </main>
+    <main id="form" class="hidden" data-ai-id="inventory-purchase-form-page">
+      <button class="back" onclick="show('list')">‹ 取消</button><h1>新增采购</h1><p class="muted">将采购归入当前批次的商品库存池。</p>
+      <div class="form"><label>商品<select data-ai-id="inventory-product-select"><option>丹恒小卡</option><option>枫原万叶小卡</option></select></label><label>采购渠道<select data-ai-id="inventory-channel-select"><option>渠道 1</option><option>渠道 2</option></select></label><button class="secondary" data-ai-id="inventory-channel-create" onclick="alert('原型：打开新增渠道弹窗')">+ 新增渠道</button><label>付款人<select data-ai-id="inventory-payer-select"><option>A</option><option>B</option></select></label><label>数量<input data-ai-id="inventory-quantity" inputmode="numeric" value="1"></label><label>总成本（元）<input data-ai-id="inventory-total-cost" inputmode="decimal" value="60.0"></label><label>采购日期<input data-ai-id="inventory-purchased-at" type="date" value="2026-09-08"></label><label>来源链接（可选）<input data-ai-id="inventory-source-url" placeholder="https://"></label><label>备注（可选）<input data-ai-id="inventory-note"></label><button data-ai-id="inventory-purchase-submit" onclick="show('list')">保存采购</button></div>
+    </main>
+  </div>
+  <div id="void" class="modal hidden" data-ai-id="inventory-writeoff-dialog"><section class="card"><h2>减少库存</h2><p class="muted">商品损坏或丢失时使用，会减少可卖数量并留下原因。</p><label>减少数量<input data-ai-id="inventory-writeoff-quantity" inputmode="numeric" value="1"></label><label>原因<input data-ai-id="inventory-writeoff-reason" placeholder="例如：商品损坏"></label><div class="actions"><button class="secondary" data-ai-id="inventory-writeoff-cancel" onclick="closeVoid()">取消</button><button class="danger" data-ai-id="inventory-writeoff-confirm-action" onclick="closeVoid();show('detail')">确认减少库存</button></div></section></div>
+  <script>function show(id){document.querySelectorAll('main').forEach((e)=>e.classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}function openVoid(){document.getElementById('void').classList.remove('hidden')}function closeVoid(){document.getElementById('void').classList.add('hidden')}</script>
+</body>
+</html>

@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useWorkspaceStore, type Batch, type BatchMember, type WorkspaceRole } from '../stores/workspace';
+import { formatDateTime } from '../utils/dateTime';
 
 const emit = defineEmits<{
   openBatch: [batch: Batch];
   createBatch: [];
+  openProducts: [];
   navigate: [page: 'batches' | 'members' | 'audit'];
 }>();
 
 const store = useWorkspaceStore();
 const recentBatches = computed(() => store.batches.slice(0, 3));
 const roleText = (role: WorkspaceRole | BatchMember['role']) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role]);
-const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short', hour12: false }).format(new Date(value)) : '--';
+const formatDate = formatDateTime;
 </script>
 
 <template>
@@ -50,9 +52,10 @@ const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('z
     <section class="overview-section" data-ai-id="quick-actions">
       <div class="overview-section-head"><h2>快捷操作</h2></div>
       <div class="overview-command-list">
-        <van-button block class="command-action" data-ai-id="quick-members" @click="emit('navigate', 'members')"><span class="command-title"><span class="command-icon">人</span>管理成员</span><van-icon name="arrow" /></van-button>
-        <van-button block class="command-action" data-ai-id="quick-batches" @click="emit('navigate', 'batches')"><span class="command-title"><span class="command-icon">批</span>查看批次</span><van-icon name="arrow" /></van-button>
-        <van-button block class="command-action" data-ai-id="quick-audit" @click="emit('navigate', 'audit')"><span class="command-title"><span class="command-icon">记</span>查看操作记录</span><van-icon name="arrow" /></van-button>
+        <van-button block class="command-action" data-ai-id="quick-products" @click="emit('openProducts')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="goods-collect-o" /></span>商品</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
+        <van-button block class="command-action" data-ai-id="quick-members" @click="emit('navigate', 'members')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="friends-o" /></span>管理成员</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
+        <van-button block class="command-action" data-ai-id="quick-batches" @click="emit('navigate', 'batches')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="orders-o" /></span>查看批次</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
+        <van-button block class="command-action" data-ai-id="quick-audit" @click="emit('navigate', 'audit')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="records" /></span>查看操作记录</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
       </div>
     </section>
   </section>
@@ -66,11 +69,10 @@ const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('z
 .overview-title h1 { overflow:hidden; margin:0 0 5px; color:#172033; font-size:23px; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; }
 .overview-role { color:#536078; font-size:12px; }
 .overview-header :deep(.van-button) { flex-shrink:0; min-height:38px; padding:0 11px; font-size:14px; }
-.overview-stats { display:flex; gap:10px; overflow-x:auto; margin:0 -16px 28px; padding:0 16px 3px; scrollbar-width:none; }
-.overview-stats::-webkit-scrollbar { display:none; }
-.overview-stat { flex:0 0 132px; min-height:92px; padding:14px 12px; border-radius:10px; background:#fff; box-shadow:0 1px 0 #e4e8f0; }
-.overview-stat small { color:#8993a7; font-size:11px; }
-.overview-stat strong { display:block; margin-top:8px; color:#172033; font-size:25px; line-height:1; }
+.overview-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:hidden; margin:0 0 20px; border-radius:10px; background:#e4e8f0; }
+.overview-stat { min-width:0; min-height:68px; padding:10px 8px; background:#fff; text-align:center; }
+.overview-stat small { display:block; overflow:hidden; color:#8993a7; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.overview-stat strong { display:block; margin-top:6px; color:#172033; font-size:21px; line-height:1; }
 .overview-section { margin-bottom:25px; }
 .overview-section-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px; }
 .overview-section-head h2 { margin:0; color:#172033; font-size:17px; line-height:1.3; }
@@ -85,12 +87,16 @@ const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('z
 .overview-batch-side :deep(.van-tag) { min-height:22px; padding:2px 6px; font-size:11px; }
 .overview-batch-side :deep(.van-icon) { position:absolute; top:29px; right:2px; color:#8993a7; font-size:16px; }
 .overview-command-list { display:grid; gap:10px; overflow:visible; }
-.command-action { display:flex; align-items:center; justify-content:space-between; min-height:56px; padding:9px 12px; border:0 !important; border-radius:10px; background:#fff; color:#172033; box-shadow:0 1px 0 rgba(23,32,51,.04); }
+.command-action { min-height:56px; padding:9px 12px; border:0 !important; border-radius:10px; background:#fff; color:#172033; box-shadow:0 1px 0 rgba(23,32,51,.04); }
+.command-action :deep(.van-button__content) { display:block; width:100%; }
 .command-action:active { background:#edf1ff; }
+.command-content { display:flex; width:100%; min-width:0; align-items:center; justify-content:space-between; }
 .command-action :deep(.van-icon) { color:#8993a7; font-size:17px; }
 .overview-command-list :deep(.van-cell__title) { display:flex; align-items:center; }
-.command-title { display:flex; align-items:center; gap:10px; color:#172033; font-weight:700; }
-.command-icon { display:grid; place-items:center; width:32px; height:32px; border-radius:8px; background:#edf1ff; color:#3657c8; font-size:15px; }
+.command-title { display:flex; min-width:0; align-items:center; gap:10px; color:#172033; font-weight:700; }
+.command-arrow { flex:0 0 auto; font-size:15px !important; }
+.command-icon { display:grid; place-items:center; width:32px; height:32px; border-radius:8px; background:#edf1ff; color:#3657c8; }
+.command-icon :deep(.van-icon) { color:inherit; font-size:18px; }
 .overview-section-head :deep(.text-button) { min-height:38px; padding:0 4px; border:0; background:transparent; box-shadow:none; font-size:13px; }
 .workspace-overview :deep(.van-empty) { padding:24px 16px; border-radius:10px; background:#fff; }
 </style>

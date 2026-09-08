@@ -9,6 +9,7 @@ ThunderLedger 是 Vue + Fastify + PostgreSQL 的经营管理后台单体应用�
 - 优先沿用现有模块、接口、数据库迁移和前端组件风格。
 - 密码、连接串、会话密钥和 R2 凭据只通过环境变量或云 Secret 注入，不进 Git。
 - 不在基础平台阶段提前实现未提出的商品、订单、库存或收益分配规则。
+- 未获得用户明确指令时，不得执行 `git commit`、`git push`、变基、重写历史或其他改变 Git 历史/远端状态的操作；完成修改和验证后仅报告状态并等待指示。
 
 ## 三档风险
 
@@ -22,10 +23,8 @@ ThunderLedger 是 Vue + Fastify + PostgreSQL 的经营管理后台单体应用�
 
 - 流程：`docs/standards/ai-workflow.md`
 - 设计模板：`docs/standards/change-templates/design.md`
-- 产品定义模板：`docs/standards/change-templates/product-brief.md`
-- UX/UI 规格模板：`docs/standards/change-templates/ux-spec.md`
+- 产品与 UX 模板：`docs/standards/change-templates/product-ux.md`
 - 测试模板：`docs/standards/change-templates/test-plan.md`
-- 页面契约模板：`docs/standards/change-templates/page-contract.md`
 - 自审清单：`docs/standards/checklists/review-checklist.md`
 - 前端规范：`docs/standards/frontend/frontend-guidelines.md`（当前移动端规范）
 - 历史桌面端规范：`docs/standards/frontend/frontend-guidelines-pc-legacy.md`，仅用于追溯，不作为新页面实现依据。
@@ -34,7 +33,7 @@ ThunderLedger 是 Vue + Fastify + PostgreSQL 的经营管理后台单体应用�
 - `data-ai-id` 通用规则见 `docs/standards/frontend/data-ai-id-guidelines.md`；具体需求在变更目录维护 `data-ai-id-registry.md`。
 - 关键业务 DOM 必须使用稳定的语义化 `data-ai-id`：页面区域、交互控件、弹窗、列表项和危险操作必填；命名使用 ASCII kebab-case；不得把用户输入直接拼入；不得用于 CSS；UI 改版需保留既有 ID。
 - 前端任务涉及 `data-ai-id` 时，遵循 `docs/standards/frontend/data-ai-id-guidelines.md`，并在具体需求目录维护 `data-ai-id-registry.md`。
-- 新模块、新页面必须在技术设计前完成 Product/UX 和可运行 HTML 原型确认；确认后还必须建立页面数据/交互契约，再设计或调整 API。已有页面小修不触发该阶段，明显改变布局、信息层级、主流程或操作路径时先询问用户是否需要原型。具体顺序以 `docs/standards/ai-workflow.md` 和 `ai-change-workflow` Skill 为准。
+- 新模块、新页面必须在技术设计前完成产品与 UX 定义和可运行 HTML 原型确认；确认后，在 `design.md` 的页面/API 契约章节确定字段、操作、权限和接口，再设计或调整 API。已有页面小修不触发该阶段，明显改变布局、信息层级、主流程或操作路径时先询问用户是否需要原型。具体顺序以 `docs/standards/ai-workflow.md` 和 `ai-change-workflow` Skill 为准。
 - 部署说明：`docs/deployment.md`
 - 安全规范：`docs/standards/security.md`
 

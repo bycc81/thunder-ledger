@@ -34,7 +34,7 @@ async function selectWorkspace(id: string) {
   await store.select(id);
 }
 
-function navigate(page: 'overview' | 'batches' | 'members' | 'audit' | 'profile') {
+function navigate(page: 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile') {
   if (page === 'overview') void router.push('/workspace');
   else void router.push(`/${page}`);
 }
@@ -57,7 +57,7 @@ onBeforeUnmount(() => window.removeEventListener('auth:expired', expired));
 
 <template>
   <MobileShell page="overview" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
-    <WorkspaceOverview @create-batch="showBatchCreate = true" @open-batch="openBatch" @navigate="navigate" />
+    <WorkspaceOverview @create-batch="showBatchCreate = true" @open-batch="openBatch" @open-products="router.push('/products')" @navigate="navigate" />
   </MobileShell>
 
   <van-popup v-model:show="showWorkspace" position="bottom" round data-ai-id="workspace-picker">

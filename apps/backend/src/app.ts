@@ -7,7 +7,10 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { allowedOrigins } from './config.js';
 import { checkDatabase, getPool } from './db/client.js';
 import { registerAssetRoutes } from './assets.js';
-import { registerAccessRoutes } from './access.js';
+import { auth, registerAccessRoutes, type AccessRequest } from './access.js';
+import { registerProductRoutes } from './products.js';
+import { registerInventoryRoutes } from './inventory.js';
+import { registerSalesExpenseRoutes } from './sales-expenses.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -55,13 +58,14 @@ export async function buildApp(): Promise<FastifyInstance> {
     return reply.send({ captchaId, image: `data:image/svg+xml,${encodeURIComponent(captchaSvg(code))}` });
   });
   app.get('/api/auth/session', async (request, reply) => {
-    try {
-      await request.jwtVerify();
-      const user = request.user as { sub?: string; username?: string; role?: string };
-      return { authenticated: true, username: user.username ?? user.sub, role: user.role };
-    } catch {
-      return reply.code(401).send({ code: 'UNAUTHORIZED', message: 'Session expired' });
-    }
+    const accessRequest = request as AccessRequest;
+    if (!(await auth(accessRequest, reply))) return;
+    return {
+      authenticated: true,
+      username: accessRequest.access!.username,
+      role: (request.user as { role?: string }).role,
+      superAdmin: accessRequest.access!.superAdmin
+    };
   });
   app.post<{ Body: { username?: string; password?: string; captchaId?: string; captchaCode?: string } }>('/api/auth/login', async (request, reply) => {
     const now = Date.now();
@@ -83,11 +87,11 @@ export async function buildApp(): Promise<FastifyInstance> {
     // Database users are preferred when the access migration is available; the
     // environment administrator remains a compatibility/bootstrap account.
     try {
-      const row = (await getPool().query('SELECT id, username, password_hash, status FROM users WHERE username=$1', [username ?? ''])).rows[0] as { id: string; username: string; password_hash: string; status: string } | undefined;
+      const row = (await getPool().query('SELECT id, username, password_hash, status, session_version FROM users WHERE username=$1', [username ?? ''])).rows[0] as { id: string; username: string; password_hash: string; status: string; session_version: number } | undefined;
       if (row) {
         if (row.status !== 'active' || !password || !(await bcrypt.compare(password, row.password_hash))) { recordLoginFailure(ip, now); return reply.code(401).send({ code: 'INVALID_CREDENTIALS', message: 'Invalid username or password' }); }
         loginFailures.delete(ip);
-        return { accessToken: await app.jwt.sign({ sub: row.id, username: row.username }, { expiresIn: '8h' }) };
+        return { accessToken: await app.jwt.sign({ sub: row.id, username: row.username, sessionVersion: row.session_version }, { expiresIn: '8h' }) };
       }
     } catch { /* database may be unavailable during bootstrap or legacy tests */ }
 
@@ -98,10 +102,19 @@ export async function buildApp(): Promise<FastifyInstance> {
       return reply.code(401).send({ code: 'INVALID_CREDENTIALS', message: 'Invalid username or password' });
     }
     loginFailures.delete(ip);
+    try {
+      const pool = getPool();
+      await pool.query('INSERT INTO users(id,username,password_hash) VALUES($1,$2,$3) ON CONFLICT (username) DO NOTHING', [randomUUID(), expectedUser, expectedHash]);
+      const row = (await pool.query('SELECT id,username,status,session_version FROM users WHERE username=$1', [expectedUser])).rows[0] as { id: string; username: string; status: string; session_version: number } | undefined;
+      if (row?.status === 'active') return { accessToken: await app.jwt.sign({ sub: row.id, username: row.username, sessionVersion: row.session_version }, { expiresIn: '8h' }) };
+    } catch { /* database may be unavailable during bootstrap or legacy tests */ }
     return { accessToken: await app.jwt.sign({ sub: username, username, role: 'admin' }, { expiresIn: '8h' }) };
   });
   app.get('/api/openapi.json', async () => ({ openapi: '3.0.3', info: { title: 'ThunderLedger API', version: '0.1.0' }, paths: {} }));
   await registerAssetRoutes(app);
   await registerAccessRoutes(app);
+  await registerProductRoutes(app);
+  await registerInventoryRoutes(app);
+  await registerSalesExpenseRoutes(app);
   return app;
 }

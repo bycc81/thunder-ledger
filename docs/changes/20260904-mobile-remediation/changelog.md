@@ -86,3 +86,12 @@
 - 展示当前账号、当前工作区和当前角色。
 - 退出登录使用确认弹窗，确认后清理登录态和工作区状态并返回登录页。
 - 会话恢复时同步读取服务端返回的用户名。
+
+## 2026-09-07 B1 收口
+
+- 用户已完成真实 iPhone 上的 B1 页面与关键交互验收。
+- 清理不再使用的 `PlaceholderPage.vue` 和对应入口引用。
+- 程序化危险操作确认统一替换为带业务 `data-ai-id` 的 Teleport Dialog。
+- 补齐 B1 完整页面的 `data-ai-id` 注册表、验收记录与自动化验证结果。
+- Backend typecheck/test（5/5）/db check、Web typecheck/build 均通过。
+- B1 状态更新为完成；下一步进入 B2 Product/UX 设计，不开始 B2 实现。

@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ThunderLedger Product Roadmap</title>
   <title>ThunderLedger 产品路线图</title>
   <style>
     :root{--canvas:#f8fafc;--surface:#fff;--ink:#181d26;--body:#333840;--muted:#68717d;--line:#dfe3e8;--primary:#aa2d00;--primary-soft:#fff0eb;--success:#237a52;--success-soft:#e6f5ed;--info:#4267a8;--info-soft:#eaf0fb;--warn:#9a6500;--warn-soft:#fff5d9}
@@ -17,19 +16,20 @@
 </head>
 <body>
 <main>
-  <header><div><h1>ThunderLedger 产品路线图</h1><p class="subtitle">个人经营账本 + 协作空间，按批次实现、按验收推进。</p></div><div class="meta"><span class="tag primary">批次 0：需求与架构冻结</span><span class="tag">版本 v1.0</span><span class="tag">风险 L2</span></div></header>
+  <header><div><h1>ThunderLedger 产品路线图</h1><p class="subtitle">个人经营账本 + 协作空间，按批次实现、按验收推进。</p></div><div class="meta"><span class="tag primary">当前阶段：B4 台账与结算设计</span><span class="tag">版本 v1.0</span><span class="tag">风险 L2</span></div></header>
   <section><h2>路线图原则</h2><div class="principles"><div class="principle"><strong>先冻结边界</strong><span>需求、权限、结算口径先形成事实来源。</span></div><div class="principle"><strong>分批交付</strong><span>每批完成验证后暂停，再进入下一批。</span></div><div class="principle"><strong>可插拔演进</strong><span>外部渠道通过适配器扩展，不侵入核心台账。</span></div></div></section>
-  <section><h2>阶段看板</h2><div class="timeline"><article class="stage current"><span class="num">B0</span><h3>需求与架构</h3><p>文档、模型、权限矩阵、结算规则。</p></article><article class="stage future"><span class="num">B1</span><h3>账户与权限</h3><p>用户、邀请、空间、角色、批次参与人。</p></article><article class="stage future"><span class="num">B2</span><h3>商品与库存</h3><p>商品、R2 图片、库存批次、成本。</p></article><article class="stage future"><span class="num">B3</span><h3>销售与费用</h3><p>手工渠道、销售、收款、邮费。</p></article><article class="stage future"><span class="num">B4</span><h3>台账与结算</h3><p>出资、收入池、分配、锁定、调整。</p></article><article class="stage future"><span class="num">B5</span><h3>报表与运维</h3><p>报表、导出、审计、备份恢复。</p></article><article class="stage future"><span class="num">B6</span><h3>插件与 SaaS</h3><p>渠道适配器、多租户、套餐计费。</p></article></div></section>
+  <section><h2>阶段看板</h2><div class="timeline"><article class="stage done"><span class="num">B0</span><h3>需求与架构</h3><p>文档、模型、权限矩阵、结算规则。</p></article><article class="stage done"><span class="num">B1</span><h3>账户与权限</h3><p>用户、邀请、空间、角色、批次参与人。</p></article><article class="stage done"><span class="num">B2</span><h3>商品与库存</h3><p>商品、R2 图片、库存批次、成本。</p></article><article class="stage current"><span class="num">B3</span><h3>销售与费用</h3><p>手工渠道、销售、卖出人、邮费。</p></article><article class="stage future"><span class="num">B4</span><h3>台账与结算</h3><p>阶段账单、成本确认、应收应付、锁定、调整。</p></article><article class="stage future"><span class="num">B5</span><h3>报表与运维</h3><p>报表、导出、审计、备份恢复。</p></article><article class="stage future"><span class="num">B6</span><h3>插件与 SaaS</h3><p>渠道适配器、多租户、套餐计费。</p></article></div></section>
   <section><h2>批次门禁</h2><table><thead><tr><th>批次</th><th>交付范围</th><th>验收门槛</th><th>状态</th></tr></thead><tbody>
-    <tr><td>B0</td><td>需求、路线图、架构图，各提供 Markdown 和 HTML。</td><td>文档一致，边界和规则无歧义；不改业务代码。</td><td><span class="gate doc">当前</span></td></tr>
-    <tr><td>B1</td><td>用户、邀请、空间、成员角色、批次参与人。</td><td>隔离、角色和 API 权限测试通过。</td><td><span class="gate verify">待开始</span></td></tr>
-    <tr><td>B2</td><td>商品资料、图片、库存批次、成本流水。</td><td>图片权限、库存数量和成本不变量通过。</td><td><span class="gate verify">待开始</span></td></tr>
-    <tr><td>B3</td><td>手工渠道、上架、销售、收款人、直接费用。</td><td>销售扣库、不同成交价和费用归属通过。</td><td><span class="gate verify">待开始</span></td></tr>
-    <tr><td>B4</td><td>共同采购、出资、收入池、结算快照和调整单。</td><td>平分场景、转账额归零、锁定不可覆盖。</td><td><span class="gate verify">待开始</span></td></tr>
+    <tr><td>B0</td><td>需求、路线图、架构图，各提供 Markdown 和 HTML。</td><td>文档一致，边界和规则无歧义；不改业务代码。</td><td><span class="gate verify">已完成</span></td></tr>
+    <tr><td>B1</td><td>用户、邀请、空间、成员角色、批次参与人。</td><td>隔离、角色和 API 权限测试通过。</td><td><span class="gate verify">已完成</span></td></tr>
+    <tr><td>B1.1</td><td>邀请链接注册、已有账号加入、账号状态与密码维护。</td><td>账号开通、权限与会话失效通过。</td><td><span class="gate verify">已完成</span></td></tr>
+    <tr><td>B2</td><td>商品资料、图片、库存批次、成本流水。</td><td>图片权限、库存数量和成本不变量通过。</td><td><span class="gate verify">已完成</span></td></tr>
+    <tr><td>B3</td><td>销售、卖出人、直接费用。</td><td>销售扣库、费用归属和撤销联动通过。</td><td><span class="gate verify">已完成</span></td></tr>
+    <tr><td>B4</td><td>按已售订单生成阶段账单、确认成本承担、计算利润和应收应付、账单快照和调整单。</td><td>订单结账闭环、平分场景、转账额归零、锁定不可覆盖。</td><td><span class="gate verify">待开始</span></td></tr>
     <tr><td>B5</td><td>报表、CSV、审计查询、备份恢复。</td><td>报表一致性、权限导出和恢复演练通过。</td><td><span class="gate verify">待开始</span></td></tr>
     <tr><td>B6</td><td>ChannelAdapter、外部平台同步、多租户预留。</td><td>不改变核心商品、库存、销售和台账模型。</td><td><span class="gate verify">后置</span></td></tr>
   </tbody></table></section>
-  <section><h2>当前基线</h2><p>仓库已有认证基础、R2 资源接口、PostgreSQL migration 和前后端骨架；商品、库存、销售、台账和结算将在后续批次按门禁实现。</p></section>
+  <section><h2>当前基线</h2><p>B0 至 B3 及 B1.1 已完成。当前仓库具备认证、邀请注册、账号管理、工作区、批次参与人、商品、采购、成本承担、库存维护、销售、费用和撤销。下一步进入 B4，设计按已售订单生成账单、确认成本承担、计算利润和应收应付。上架功能后置到 B6 的渠道插件阶段。</p></section>
 </main>
 </body>
 </html>
