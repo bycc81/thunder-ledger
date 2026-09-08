@@ -21,6 +21,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const selectedWorkspace = computed(() => workspaces.value.find((w) => w.id === selectedWorkspaceId.value));
   const canManageWorkspace = computed(() => ['owner', 'admin'].includes(selectedWorkspace.value?.role ?? ''));
   const canCreateBatch = computed(() => ['owner', 'admin', 'editor'].includes(selectedWorkspace.value?.role ?? ''));
+  const canEditProducts = computed(() => ['owner', 'admin', 'editor'].includes(selectedWorkspace.value?.role ?? ''));
 
   async function load() {
     loading.value = true; error.value = '';
@@ -46,5 +47,5 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
   async function select(id: string) { selectedWorkspaceId.value = id; await loadScoped(); }
   function clear() { workspaces.value = []; selectedWorkspaceId.value = ''; members.value = []; batches.value = []; audits.value = []; }
-  return { workspaces, selectedWorkspaceId, members, batches, audits, loading, error, selectedWorkspace, canManageWorkspace, canCreateBatch, load, loadScoped, select, clear };
+  return { workspaces, selectedWorkspaceId, members, batches, audits, loading, error, selectedWorkspace, canManageWorkspace, canCreateBatch, canEditProducts, load, loadScoped, select, clear };
 });

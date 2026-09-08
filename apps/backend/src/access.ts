@@ -4,7 +4,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { getPool } from './db/client.js';
 
 type Claims = { sub?: string; username?: string; role?: string };
-type Req = FastifyRequest & { access?: { id: string; username: string; superAdmin: boolean } };
+export type AccessRequest = FastifyRequest & { access?: { id: string; username: string; superAdmin: boolean } };
+type Req = AccessRequest;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function isDatabaseUser(access: Req['access']): boolean { return Boolean(access?.id && UUID_RE.test(access.id)); }
 function rejectLegacyAccount(request: Req, reply: FastifyReply): boolean {
@@ -13,7 +14,7 @@ function rejectLegacyAccount(request: Req, reply: FastifyReply): boolean {
   return true;
 }
 
-async function auth(request: Req, reply: FastifyReply): Promise<boolean> {
+export async function auth(request: Req, reply: FastifyReply): Promise<boolean> {
   try {
     await request.jwtVerify(); const c = request.user as Claims; if (!c.sub) throw new Error('missing subject');
     if (UUID_RE.test(c.sub)) { const row = (await getPool().query('SELECT username,status FROM users WHERE id=$1', [c.sub])).rows[0]; if (!row || row.status !== 'active') throw new Error('inactive user'); request.access = { id: c.sub, username: row.username, superAdmin: row.username === (process.env.ADMIN_USERNAME ?? 'admin') }; }
@@ -27,12 +28,13 @@ async function role(userId: string, workspaceId: string): Promise<string | null>
   if (!UUID_RE.test(userId) || !UUID_RE.test(workspaceId)) return null;
   const r = await getPool().query('SELECT wm.role FROM workspace_members wm JOIN workspaces w ON w.id=wm.workspace_id AND w.deleted_at IS NULL WHERE wm.workspace_id=$1 AND wm.user_id=$2', [workspaceId, userId]); return r.rows[0]?.role ?? null;
 }
-async function accessRole(request: Req, workspaceId: string): Promise<string | null> { return request.access?.superAdmin ? 'owner' : role(request.access?.id ?? '', workspaceId); }
-async function audit(workspaceId: string | null, actor: string | null, action: string, entityType: string, entityId: string | null, metadata: Record<string, unknown> = {}) {
+export async function accessRole(request: Req, workspaceId: string): Promise<string | null> { return request.access?.superAdmin ? 'owner' : role(request.access?.id ?? '', workspaceId); }
+export async function audit(workspaceId: string | null, actor: string | null, action: string, entityType: string, entityId: string | null, metadata: Record<string, unknown> = {}) {
   await getPool().query('INSERT INTO audit_logs(id,workspace_id,actor_user_id,action,entity_type,entity_id,metadata) VALUES($1,$2,$3,$4,$5,$6,$7)', [randomUUID(), workspaceId, actor, action, entityType, entityId, JSON.stringify(metadata)]);
 }
 function hashToken(token: string) { return createHash('sha256').update(token).digest('hex'); }
 function canManage(r: string | null) { return r === 'owner' || r === 'admin'; }
+export function canEditWorkspace(r: string | null) { return r === 'owner' || r === 'admin' || r === 'editor'; }
 async function batchContext(request: Req, batchId: string): Promise<{ workspaceId: string; batchRole: string | null; workspaceRole: string | null } | null> {
   const row = (await getPool().query('SELECT workspace_id FROM collaboration_batches WHERE id=$1 AND deleted_at IS NULL', [batchId])).rows[0] as { workspace_id: string } | undefined;
   if (!row || !request.access) return null;
@@ -98,4 +100,4 @@ export async function registerAccessRoutes(app: FastifyInstance): Promise<void> 
   app.get('/api/audit', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const ws=(request.query as {workspaceId?:string})?.workspaceId;if(!ws||!canManage(await accessRole(r,ws)))return reply.code(403).send({code:'FORBIDDEN'});return (await getPool().query('SELECT a.id,a.action,a.entity_type,a.entity_id,a.metadata,a.created_at,u.username AS actor_username FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_user_id WHERE a.workspace_id=$1 ORDER BY a.created_at DESC LIMIT 200',[ws])).rows;});
 }
 
-export { auth, role, audit };
+export { role };

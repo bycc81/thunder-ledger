@@ -5,6 +5,7 @@ import { useWorkspaceStore, type Batch, type BatchMember, type WorkspaceRole } f
 const emit = defineEmits<{
   openBatch: [batch: Batch];
   createBatch: [];
+  openProducts: [];
   navigate: [page: 'batches' | 'members' | 'audit'];
 }>();
 
@@ -50,9 +51,10 @@ const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('z
     <section class="overview-section" data-ai-id="quick-actions">
       <div class="overview-section-head"><h2>快捷操作</h2></div>
       <div class="overview-command-list">
-        <van-button block class="command-action" data-ai-id="quick-members" @click="emit('navigate', 'members')"><span class="command-title"><span class="command-icon">人</span>管理成员</span><van-icon name="arrow" /></van-button>
-        <van-button block class="command-action" data-ai-id="quick-batches" @click="emit('navigate', 'batches')"><span class="command-title"><span class="command-icon">批</span>查看批次</span><van-icon name="arrow" /></van-button>
-        <van-button block class="command-action" data-ai-id="quick-audit" @click="emit('navigate', 'audit')"><span class="command-title"><span class="command-icon">记</span>查看操作记录</span><van-icon name="arrow" /></van-button>
+        <van-button block class="command-action" data-ai-id="quick-products" @click="emit('openProducts')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="goods-collect-o" /></span>商品</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
+        <van-button block class="command-action" data-ai-id="quick-members" @click="emit('navigate', 'members')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="friends-o" /></span>管理成员</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
+        <van-button block class="command-action" data-ai-id="quick-batches" @click="emit('navigate', 'batches')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="orders-o" /></span>查看批次</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
+        <van-button block class="command-action" data-ai-id="quick-audit" @click="emit('navigate', 'audit')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="records" /></span>查看操作记录</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
       </div>
     </section>
   </section>
@@ -85,12 +87,16 @@ const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('z
 .overview-batch-side :deep(.van-tag) { min-height:22px; padding:2px 6px; font-size:11px; }
 .overview-batch-side :deep(.van-icon) { position:absolute; top:29px; right:2px; color:#8993a7; font-size:16px; }
 .overview-command-list { display:grid; gap:10px; overflow:visible; }
-.command-action { display:flex; align-items:center; justify-content:space-between; min-height:56px; padding:9px 12px; border:0 !important; border-radius:10px; background:#fff; color:#172033; box-shadow:0 1px 0 rgba(23,32,51,.04); }
+.command-action { min-height:56px; padding:9px 12px; border:0 !important; border-radius:10px; background:#fff; color:#172033; box-shadow:0 1px 0 rgba(23,32,51,.04); }
+.command-action :deep(.van-button__content) { display:block; width:100%; }
 .command-action:active { background:#edf1ff; }
+.command-content { display:flex; width:100%; min-width:0; align-items:center; justify-content:space-between; }
 .command-action :deep(.van-icon) { color:#8993a7; font-size:17px; }
 .overview-command-list :deep(.van-cell__title) { display:flex; align-items:center; }
-.command-title { display:flex; align-items:center; gap:10px; color:#172033; font-weight:700; }
-.command-icon { display:grid; place-items:center; width:32px; height:32px; border-radius:8px; background:#edf1ff; color:#3657c8; font-size:15px; }
+.command-title { display:flex; min-width:0; align-items:center; gap:10px; color:#172033; font-weight:700; }
+.command-arrow { flex:0 0 auto; font-size:15px !important; }
+.command-icon { display:grid; place-items:center; width:32px; height:32px; border-radius:8px; background:#edf1ff; color:#3657c8; }
+.command-icon :deep(.van-icon) { color:inherit; font-size:18px; }
 .overview-section-head :deep(.text-button) { min-height:38px; padding:0 4px; border:0; background:transparent; box-shadow:none; font-size:13px; }
 .workspace-overview :deep(.van-empty) { padding:24px 16px; border-radius:10px; background:#fff; }
 </style>

@@ -11,6 +11,7 @@ import {
   Empty,
   Field,
   Form,
+  Icon,
   Loading,
   NavBar,
   Popover,
@@ -33,6 +34,9 @@ import BatchDetailPage from './pages/BatchDetailPage.vue';
 import MembersPage from './pages/MembersPage.vue';
 import OperationRecordsPage from './pages/OperationRecordsPage.vue';
 import ProfilePage from './pages/ProfilePage.vue';
+import ProductsPage from './pages/ProductsPage.vue';
+import ProductDetailPage from './pages/ProductDetailPage.vue';
+import ProductFormPage from './pages/ProductFormPage.vue';
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -44,6 +48,10 @@ const router = createRouter({
     { path: '/members', component: MembersPage, meta: { requiresAuth: true } },
     { path: '/audit', component: OperationRecordsPage, meta: { requiresAuth: true } },
     { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
+    { path: '/products', component: ProductsPage, meta: { requiresAuth: true } },
+    { path: '/products/new', component: ProductFormPage, meta: { requiresAuth: true } },
+    { path: '/products/:id', component: ProductDetailPage, meta: { requiresAuth: true } },
+    { path: '/products/:id/edit', component: ProductFormPage, meta: { requiresAuth: true } },
   ],
 });
 router.beforeEach((to) => {
@@ -52,5 +60,5 @@ router.beforeEach((to) => {
   return true;
 });
 const app = createApp(App).use(createPinia()).use(router);
-[Button, Cell, CellGroup, Dialog, DropdownItem, DropdownMenu, Empty, Field, Form, Loading, NavBar, Picker, Popover, Popup, Radio, RadioGroup, Search, Tabbar, TabbarItem, Tag].forEach((component) => app.use(component));
+[Button, Cell, CellGroup, Dialog, DropdownItem, DropdownMenu, Empty, Field, Form, Icon, Loading, NavBar, Picker, Popover, Popup, Radio, RadioGroup, Search, Tabbar, TabbarItem, Tag].forEach((component) => app.use(component));
 app.mount('#app');

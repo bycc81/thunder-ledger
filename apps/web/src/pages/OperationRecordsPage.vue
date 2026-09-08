@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router';
 import MobileShell from '../layouts/MobileShell.vue';
 import { useWorkspaceStore, type Audit, type WorkspaceRole } from '../stores/workspace';
 
-type Page = 'overview' | 'batches' | 'members' | 'audit' | 'profile';
+type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
 const router = useRouter();
 const store = useWorkspaceStore();
 const showWorkspace = ref(false);
@@ -42,7 +42,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
 </script>
 
 <template>
-  <MobileShell page="audit" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
+  <MobileShell page="overview" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
     <section class="records-page" data-ai-id="operation-record-page">
       <header class="page-heading" data-ai-id="operation-record-header"><div><span class="eyebrow">当前工作区</span><h1>操作记录</h1></div><van-button v-if="canView" class="refresh-button" plain icon="replay" :loading="refreshing" data-ai-id="operation-record-refresh" @click="refresh">刷新</van-button></header>
       <p v-if="!canView" class="permission-notice" data-ai-id="operation-record-permission">当前角色：{{ roleText(store.selectedWorkspace?.role ?? 'viewer') }}，无权查看操作记录。</p>

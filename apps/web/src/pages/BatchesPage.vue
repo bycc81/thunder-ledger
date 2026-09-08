@@ -8,7 +8,7 @@ import { useAuthStore } from '../stores/auth';
 import { useWorkspaceStore, type Batch, type BatchMember, type WorkspaceRole } from '../stores/workspace';
 import DangerConfirmDialog from '../components/DangerConfirmDialog.vue';
 
-type Page = 'overview' | 'batches' | 'members' | 'audit' | 'profile';
+type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
 const router = useRouter();
 const auth = useAuthStore();
 const store = useWorkspaceStore();

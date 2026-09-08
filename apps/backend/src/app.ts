@@ -8,6 +8,7 @@ import { allowedOrigins } from './config.js';
 import { checkDatabase, getPool } from './db/client.js';
 import { registerAssetRoutes } from './assets.js';
 import { registerAccessRoutes } from './access.js';
+import { registerProductRoutes } from './products.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -103,5 +104,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.get('/api/openapi.json', async () => ({ openapi: '3.0.3', info: { title: 'ThunderLedger API', version: '0.1.0' }, paths: {} }));
   await registerAssetRoutes(app);
   await registerAccessRoutes(app);
+  await registerProductRoutes(app);
   return app;
 }
