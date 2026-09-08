@@ -4,6 +4,7 @@ import { showFailToast } from 'vant';
 import { useRouter } from 'vue-router';
 import MobileShell from '../layouts/MobileShell.vue';
 import { useWorkspaceStore, type Audit, type WorkspaceRole } from '../stores/workspace';
+import { formatDateTime } from '../utils/dateTime';
 
 type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
 const router = useRouter();
@@ -20,13 +21,16 @@ const actionText = (action: string) => ({
   'batch.member.add': '添加批次参与人',
   'batch.member.role.update': '调整批次成员角色',
   'batch.member.remove': '移除批次参与人',
+  'inventory.purchase.create': '新增采购',
+  'inventory.purchase.update': '修改采购',
+  'inventory.adjustment.create': '减少库存',
   'invitation.create': '邀请成员',
   'member.role.update': '调整成员角色',
   'member.remove': '移除成员',
   register: '注册账号',
 }[action] ?? action);
 const entityText = (record: Audit) => ({ batch: '批次', batch_member: '批次成员', workspace_member: '工作区成员', invitation: '邀请' }[record.entity_type] ?? record.entity_type);
-const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short', hour12: false }).format(new Date(value)) : '--';
+const formatDate = formatDateTime;
 const canView = computed(() => store.canManageWorkspace);
 
 function navigate(page: Page) { void router.push(page === 'overview' ? '/workspace' : `/${page}`); }

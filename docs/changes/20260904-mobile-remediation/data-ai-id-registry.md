@@ -46,7 +46,10 @@
 | `batch-detail-page` | 页面根 | 批次详情 | 页面定位 |
 | `batch-detail-topbar` | 区域 | 批次详情顶部 | 返回操作 |
 | `batch-detail-summary` | 区域 | 批次详情 | 只读摘要 |
-| `batch-detail-name` | 输入框 | 批次详情 | 编辑批次名称 |
+| `batch-detail-name` | 区域 | 批次详情 | 展示批次名称 |
+| `batch-name-edit` | 控件 | 批次详情 | 打开批次名称修改弹窗 |
+| `batch-name-edit-dialog` | 弹窗 | 批次名称修改 | 弹窗根 |
+| `batch-name-edit-input` | 输入框 | 批次名称修改 | 输入批次名称 |
 | `batch-member-list` | 区域 | 批次详情 | 成员列表 |
 | `batch-member-item-{userId}` | 列表项 | 批次成员 | 成员定位 |
 | `batch-member-role-{userId}` | 控件 | 批次成员 | 调整角色 |
@@ -55,6 +58,7 @@
 | `participant-add-dialog` | 弹窗 | 添加参与人 | 弹窗根 |
 | `participant-user` | 选择器 | 添加参与人 | 选择工作区成员 |
 | `participant-role` | 选择器 | 添加参与人 | 选择批次角色 |
+| `participant-role-picker` | 弹层 | 添加参与人 | 选择编辑者或查看者 |
 | `participant-remove-confirm` | 弹窗 | 批次成员 | 移除参与人确认弹层根 |
 
 ## 成员、操作记录与账号

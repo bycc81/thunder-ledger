@@ -3,7 +3,7 @@ import { defineStore } from 'pinia';
 import { api } from '../api';
 
 export const useAuthStore = defineStore('auth', () => {
-  const username = ref('admin');
+  const username = ref('');
   const password = ref('');
   const captchaId = ref('');
   const captchaImage = ref('');
@@ -11,6 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false);
   const restoring = ref(true);
   const loggedIn = ref(false);
+  const isSystemAdmin = ref(false);
   const error = ref('');
 
   async function loadCaptcha() {
@@ -31,8 +32,9 @@ export const useAuthStore = defineStore('auth', () => {
       return;
     }
     try {
-      const { data } = await api.get<{ username?: string }>('/auth/session');
+      const { data } = await api.get<{ username?: string; superAdmin?: boolean }>('/auth/session');
       if (data.username) username.value = data.username;
+      isSystemAdmin.value = Boolean(data.superAdmin);
       loggedIn.value = true;
     } catch {
       localStorage.removeItem('accessToken');
@@ -58,7 +60,7 @@ export const useAuthStore = defineStore('auth', () => {
         captchaCode: captchaCode.value,
       });
       localStorage.setItem('accessToken', data.accessToken);
-      loggedIn.value = true;
+      await restore();
       return true;
     } catch (e: any) {
       error.value = e?.response?.status === 429 ? '登录过于频繁，请稍后再试' : '用户名、密码或验证码错误';
@@ -71,9 +73,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   function logout() {
     localStorage.removeItem('accessToken');
+    username.value = '';
+    password.value = '';
     loggedIn.value = false;
+    isSystemAdmin.value = false;
     void loadCaptcha();
   }
 
-  return { username, password, captchaId, captchaImage, captchaCode, loading, restoring, loggedIn, error, loadCaptcha, restore, login, logout };
+  return { username, password, captchaId, captchaImage, captchaCode, loading, restoring, loggedIn, isSystemAdmin, error, loadCaptcha, restore, login, logout };
 });

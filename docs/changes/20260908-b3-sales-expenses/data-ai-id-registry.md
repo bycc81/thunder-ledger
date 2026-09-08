@@ -1,0 +1,44 @@
+# `data-ai-id` 注册表：B3 交易与费用
+
+| ID | 类型 | 用途 |
+|---|---|---|
+| `batch-transactions-entry` | 控件 | 从批次详情进入交易 |
+| `transaction-page` | 页面根 | 销售/费用交易页 |
+| `transaction-topbar` | 区域 | 交易页返回栏 |
+| `transaction-tabs` | 区域 | 销售/费用分栏 |
+| `transaction-sales-tab` | 控件 | 切换销售栏 |
+| `transaction-expenses-tab` | 控件 | 切换费用栏 |
+| `sale-list` | 区域 | 销售记录列表 |
+| `sale-item-{saleId}` | 列表项 | 指定销售记录 |
+| `sale-create` | 控件 | 打开销售表单 |
+| `sale-form-page` | 页面根 | 记录销售 |
+| `sale-product-select` | 选择器 | 选择批次商品库存 |
+| `sale-available-quantity` | 状态标记 | 当前商品可售数量 |
+| `sale-quantity` | 输入框 | 销售数量 |
+| `sale-price` | 输入框 | 成交总价 |
+| `sale-seller-select` | 选择器 | 选择卖出人；销售款自动记在该成员名下 |
+| `sale-occurred-at` | 选择器 | 成交时间 |
+| `sale-note` | 输入框 | 可选备注 |
+| `sale-submit` | 控件 | 保存销售并扣库 |
+| `sale-reversal-{saleId}` | 危险操作 | 发起撤销销售 |
+| `sale-reversal-dialog` | 弹窗 | 撤销销售确认 |
+| `sale-reversal-reason` | 输入框 | 撤销销售原因 |
+| `sale-reversal-confirm-action` | 危险操作 | 确认撤销销售 |
+| `sale-reversal-cancel` | 控件 | 取消撤销销售 |
+| `expense-list` | 区域 | 费用记录列表 |
+| `expense-item-{expenseId}` | 列表项 | 指定费用记录 |
+| `expense-create` | 控件 | 打开费用表单 |
+| `expense-form-page` | 页面根 | 记录费用 |
+| `expense-type-select` | 选择器 | 邮费或自定义费用类型 |
+| `expense-type-custom` | 输入框 | 自定义费用名称 |
+| `expense-amount` | 输入框 | 费用金额 |
+| `expense-payer-select` | 选择器 | 选择付款人 |
+| `expense-sale-select` | 选择器 | 可选关联销售 |
+| `expense-occurred-at` | 选择器 | 费用发生时间 |
+| `expense-note` | 输入框 | 可选备注 |
+| `expense-submit` | 控件 | 保存费用 |
+| `expense-reversal-{expenseId}` | 危险操作 | 发起撤销费用 |
+| `expense-reversal-dialog` | 弹窗 | 撤销费用确认 |
+| `expense-reversal-reason` | 输入框 | 撤销费用原因 |
+| `expense-reversal-confirm-action` | 危险操作 | 确认撤销费用 |
+| `expense-reversal-cancel` | 控件 | 取消撤销费用 |

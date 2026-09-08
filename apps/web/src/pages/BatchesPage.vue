@@ -7,6 +7,7 @@ import MobileShell from '../layouts/MobileShell.vue';
 import { useAuthStore } from '../stores/auth';
 import { useWorkspaceStore, type Batch, type BatchMember, type WorkspaceRole } from '../stores/workspace';
 import DangerConfirmDialog from '../components/DangerConfirmDialog.vue';
+import { formatDateTime } from '../utils/dateTime';
 
 type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
 const router = useRouter();
@@ -22,7 +23,7 @@ const pendingDelete = ref<Batch | null>(null);
 const showDeleteConfirm = ref(false);
 
 const roleText = (role: WorkspaceRole | BatchMember['role']) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role]);
-const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short', hour12: false }).format(new Date(value)) : '--';
+const formatDate = formatDateTime;
 const filteredBatches = computed(() => store.batches.filter((batch) => {
   const keyword = search.value.trim().toLowerCase();
   return (!keyword || batch.name.toLowerCase().includes(keyword)) && (status.value === 'all' || batch.status === status.value);

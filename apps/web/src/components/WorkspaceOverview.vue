@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useWorkspaceStore, type Batch, type BatchMember, type WorkspaceRole } from '../stores/workspace';
+import { formatDateTime } from '../utils/dateTime';
 
 const emit = defineEmits<{
   openBatch: [batch: Batch];
@@ -12,7 +13,7 @@ const emit = defineEmits<{
 const store = useWorkspaceStore();
 const recentBatches = computed(() => store.batches.slice(0, 3));
 const roleText = (role: WorkspaceRole | BatchMember['role']) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role]);
-const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short', hour12: false }).format(new Date(value)) : '--';
+const formatDate = formatDateTime;
 </script>
 
 <template>
@@ -68,11 +69,10 @@ const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('z
 .overview-title h1 { overflow:hidden; margin:0 0 5px; color:#172033; font-size:23px; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; }
 .overview-role { color:#536078; font-size:12px; }
 .overview-header :deep(.van-button) { flex-shrink:0; min-height:38px; padding:0 11px; font-size:14px; }
-.overview-stats { display:flex; gap:10px; overflow-x:auto; margin:0 -16px 28px; padding:0 16px 3px; scrollbar-width:none; }
-.overview-stats::-webkit-scrollbar { display:none; }
-.overview-stat { flex:0 0 132px; min-height:92px; padding:14px 12px; border-radius:10px; background:#fff; box-shadow:0 1px 0 #e4e8f0; }
-.overview-stat small { color:#8993a7; font-size:11px; }
-.overview-stat strong { display:block; margin-top:8px; color:#172033; font-size:25px; line-height:1; }
+.overview-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:hidden; margin:0 0 20px; border-radius:10px; background:#e4e8f0; }
+.overview-stat { min-width:0; min-height:68px; padding:10px 8px; background:#fff; text-align:center; }
+.overview-stat small { display:block; overflow:hidden; color:#8993a7; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.overview-stat strong { display:block; margin-top:6px; color:#172033; font-size:21px; line-height:1; }
 .overview-section { margin-bottom:25px; }
 .overview-section-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px; }
 .overview-section-head h2 { margin:0; color:#172033; font-size:17px; line-height:1.3; }

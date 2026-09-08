@@ -60,6 +60,6 @@ test('session endpoint restores a valid login and rejects missing token', async 
   const token = await app.jwt.sign({ sub: 'admin', role: 'admin' }, { expiresIn: '8h' });
   const authorized = await app.inject({ method: 'GET', url: '/api/auth/session', headers: { authorization: `Bearer ${token}` } });
   assert.equal(authorized.statusCode, 200);
-  assert.deepEqual(authorized.json(), { authenticated: true, username: 'admin', role: 'admin' });
+  assert.deepEqual(authorized.json(), { authenticated: true, username: 'admin', role: 'admin', superAdmin: true });
   await app.close();
 });
