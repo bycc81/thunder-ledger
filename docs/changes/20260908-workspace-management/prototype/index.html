@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>工作区管理原型</title>
+  <style>
+    * { box-sizing: border-box; } body { margin:0; background:#f5f7fb; color:#172033; font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; } .app { min-height:100vh; max-width:430px; margin:auto; background:#f5f7fb; } header { display:flex; height:56px; align-items:center; gap:12px; padding:0 16px; border-bottom:1px solid #e4e8f0; background:#fff; font-weight:700; } button { min-height:44px; border:0; border-radius:8px; padding:0 12px; background:#fff; color:#3657c8; font:inherit; font-weight:700; cursor:pointer; } button:disabled { color:#b3bac7; cursor:not-allowed; } main { padding:20px 16px; } h1 { margin:0 0 20px; font-size:24px; } h2 { margin:0 0 10px; font-size:17px; } section { margin-bottom:24px; } .list,.notice { border-radius:10px; background:#fff; box-shadow:0 1px 0 #e4e8f0; } .row { display:flex; min-height:56px; align-items:center; justify-content:space-between; gap:12px; padding:8px 12px; border-bottom:1px solid #e4e8f0; } .row:last-child { border:0; } label { color:#8993a7; font-size:12px; } input { min-width:0; flex:1; border:0; outline:0; color:#172033; font:inherit; font-weight:700; text-align:right; } .notice { margin-bottom:8px; padding:12px; color:#68717d; line-height:1.5; } .danger { color:#b42318; } .popup { position:fixed; inset:0; display:none; align-items:flex-end; background:#0006; } .popup.open { display:flex; } .dialog { width:100%; max-width:430px; padding:20px 16px 16px; border-radius:16px 16px 0 0; background:#fff; } .dialog h2 { margin-bottom:8px; } .dialog p { margin:0 0 16px; color:#68717d; line-height:1.5; } .actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; } .confirm { background:#b42318; color:#fff; } .tab { display:flex; gap:8px; margin-bottom:18px; } .tab button.active { background:#3657c8; color:#fff; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header><button aria-label="返回">‹</button><span>工作区管理</span></header>
+    <main data-ai-id="workspace-management-page">
+      <div class="tab"><button class="active" id="ownerTab">我是创建人</button><button id="memberTab">我是成员</button></div>
+      <section data-ai-id="workspace-management-info"><h2>基本信息</h2><div class="list"><div class="row"><label>工作区名称</label><input data-ai-id="workspace-management-name" value="小卡合买"><button data-ai-id="workspace-management-rename">保存</button></div><div class="row"><label>我的身份</label><strong id="identity">创建人</strong></div></div></section>
+      <section id="ownerPanel"><div class="notice" data-ai-id="workspace-delete-blocked">已有 2 个批次，暂时不能删除此工作区。</div></section>
+      <section><div class="list"><button class="danger" id="dangerAction" data-ai-id="workspace-delete" disabled>删除工作区</button></div></section>
+    </main>
+  </div>
+  <div class="popup" id="confirm"><div class="dialog"><h2 id="dialogTitle">删除工作区</h2><p id="dialogMessage">删除后工作区将不再显示。历史记录不会删除，确认继续？</p><div class="actions"><button id="cancel">取消</button><button class="confirm" id="confirmButton">确认删除</button></div></div></div>
+  <script>
+    const ownerTab=document.querySelector('#ownerTab'),memberTab=document.querySelector('#memberTab'),identity=document.querySelector('#identity'),ownerPanel=document.querySelector('#ownerPanel'),danger=document.querySelector('#dangerAction'),modal=document.querySelector('#confirm'),title=document.querySelector('#dialogTitle'),message=document.querySelector('#dialogMessage'),confirm=document.querySelector('#confirmButton');
+    function owner(){ownerTab.classList.add('active');memberTab.classList.remove('active');identity.textContent='创建人';ownerPanel.style.display='block';danger.textContent='删除工作区';danger.dataset.aiId='workspace-delete';danger.disabled=true;title.textContent='删除工作区';message.textContent='删除后工作区将不再显示。历史记录不会删除，确认继续？';confirm.textContent='确认删除';}
+    function member(){memberTab.classList.add('active');ownerTab.classList.remove('active');identity.textContent='成员';ownerPanel.style.display='none';danger.textContent='退出工作区';danger.dataset.aiId='workspace-leave';danger.disabled=false;title.textContent='退出工作区';message.textContent='退出后你将不能进入该工作区，也看不到其中的批次；历史记录不会删除。';confirm.textContent='确认退出';}
+    ownerTab.onclick=owner; memberTab.onclick=member; danger.onclick=()=>modal.classList.add('open'); document.querySelector('#cancel').onclick=()=>modal.classList.remove('open'); confirm.onclick=()=>modal.classList.remove('open'); owner();
+  </script>
+</body>
+</html>

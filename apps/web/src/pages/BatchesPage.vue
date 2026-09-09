@@ -7,6 +7,7 @@ import MobileShell from '../layouts/MobileShell.vue';
 import { useAuthStore } from '../stores/auth';
 import { useWorkspaceStore, type Batch, type BatchMember, type WorkspaceRole } from '../stores/workspace';
 import DangerConfirmDialog from '../components/DangerConfirmDialog.vue';
+import WorkspacePicker from '../components/WorkspacePicker.vue';
 import { formatDateTime } from '../utils/dateTime';
 
 type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
@@ -16,6 +17,7 @@ const store = useWorkspaceStore();
 const search = ref('');
 const status = ref<'all' | 'open' | 'closed'>('all');
 const showWorkspace = ref(false);
+const showWorkspaceCreate = ref(false);
 const showCreate = ref(false);
 const batchName = ref('');
 const deletingId = ref('');
@@ -30,7 +32,6 @@ const filteredBatches = computed(() => store.batches.filter((batch) => {
 }));
 
 function navigate(page: Page) { void router.push(page === 'overview' ? '/workspace' : `/${page}`); }
-async function selectWorkspace(id: string) { showWorkspace.value = false; await store.select(id); }
 async function createBatch() {
   if (!batchName.value.trim() || !store.selectedWorkspaceId) return;
   try {
@@ -81,10 +82,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
     </section>
   </MobileShell>
 
-  <van-popup v-model:show="showWorkspace" position="bottom" round data-ai-id="workspace-picker">
-    <van-cell title="切换工作区" />
-    <van-cell v-for="workspace in store.workspaces" :key="workspace.id" :title="workspace.name" :label="roleText(workspace.role)" is-link :data-ai-id="`workspace-option-${workspace.id}`" @click="selectWorkspace(workspace.id)" />
-  </van-popup>
+  <WorkspacePicker v-model:show="showWorkspace" v-model:show-create="showWorkspaceCreate" />
   <van-dialog v-model:show="showCreate" title="新建批次" show-cancel-button data-ai-id="batch-create-dialog" @confirm="createBatch">
     <van-field v-model="batchName" label="名称" placeholder="批次名称" data-ai-id="batch-create-name" />
   </van-dialog>

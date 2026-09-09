@@ -6,6 +6,7 @@ import { formatDateTime } from '../utils/dateTime';
 const emit = defineEmits<{
   openBatch: [batch: Batch];
   createBatch: [];
+  createWorkspace: [];
   openProducts: [];
   navigate: [page: 'batches' | 'members' | 'audit'];
 }>();
@@ -18,6 +19,11 @@ const formatDate = formatDateTime;
 
 <template>
   <section class="workspace-overview" data-ai-id="workspace-overview">
+    <van-empty v-if="!store.workspaces.length" description="还没有工作区" data-ai-id="workspace-empty">
+      <p class="workspace-empty-note">创建一个工作区后，就可以添加成员、管理商品和记录批次。</p>
+      <van-button type="primary" data-ai-id="workspace-empty-create" @click="emit('createWorkspace')">创建工作区</van-button>
+    </van-empty>
+    <template v-else>
     <div class="overview-header" data-ai-id="workspace-header">
       <div class="overview-title">
         <span class="overview-eyebrow">当前工作区</span>
@@ -58,6 +64,7 @@ const formatDate = formatDateTime;
         <van-button block class="command-action" data-ai-id="quick-audit" @click="emit('navigate', 'audit')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="records" /></span>查看操作记录</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
       </div>
     </section>
+    </template>
   </section>
 </template>
 
@@ -99,4 +106,6 @@ const formatDate = formatDateTime;
 .command-icon :deep(.van-icon) { color:inherit; font-size:18px; }
 .overview-section-head :deep(.text-button) { min-height:38px; padding:0 4px; border:0; background:transparent; box-shadow:none; font-size:13px; }
 .workspace-overview :deep(.van-empty) { padding:24px 16px; border-radius:10px; background:#fff; }
+.workspace-overview :deep(.van-empty__bottom) { display:flex; flex-direction:column; align-items:center; }
+.workspace-empty-note { align-self:stretch; margin:0 0 14px; color:#8993a7; font-size:12px; line-height:1.5; text-align:left; }
 </style>

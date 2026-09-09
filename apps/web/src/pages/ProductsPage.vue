@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, type Product } from '../api';
 import MobileShell from '../layouts/MobileShell.vue';
+import WorkspacePicker from '../components/WorkspacePicker.vue';
 import { useWorkspaceStore, type WorkspaceRole } from '../stores/workspace';
 
 type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
@@ -13,12 +14,12 @@ const keyword = ref('');
 const loading = ref(false);
 const error = ref('');
 const showWorkspace = ref(false);
+const showWorkspaceCreate = ref(false);
 let requestVersion = 0;
 
 const readonly = computed(() => !store.canEditProducts);
 const roleText = (role?: WorkspaceRole) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role ?? 'viewer']);
 function navigate(page: Page) { void router.push(page === 'overview' ? '/workspace' : `/${page}`); }
-async function selectWorkspace(id: string) { showWorkspace.value = false; await store.select(id); await load(); }
 async function load() {
   if (!store.selectedWorkspaceId) return;
   const version = ++requestVersion;
@@ -54,7 +55,7 @@ watch(keyword, () => { void load(); });
       </div>
     </section>
   </MobileShell>
-  <van-popup v-model:show="showWorkspace" position="bottom" round data-ai-id="workspace-picker"><van-cell title="切换工作区" /><van-cell v-for="workspace in store.workspaces" :key="workspace.id" :title="workspace.name" :label="roleText(workspace.role)" is-link :data-ai-id="`workspace-option-${workspace.id}`" @click="selectWorkspace(workspace.id)" /></van-popup>
+  <WorkspacePicker v-model:show="showWorkspace" v-model:show-create="showWorkspaceCreate" @selected="load" />
   <span hidden data-ai-id="product-success-toast" aria-live="polite"></span>
 </template>
 

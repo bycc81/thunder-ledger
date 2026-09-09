@@ -5,15 +5,20 @@ import { useRouter } from 'vue-router';
 import MobileShell from '../layouts/MobileShell.vue';
 import { useWorkspaceStore, type Audit, type WorkspaceRole } from '../stores/workspace';
 import { formatDateTime } from '../utils/dateTime';
+import WorkspacePicker from '../components/WorkspacePicker.vue';
 
 type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
 const router = useRouter();
 const store = useWorkspaceStore();
 const showWorkspace = ref(false);
+const showWorkspaceCreate = ref(false);
 const refreshing = ref(false);
 const roleText = (role: WorkspaceRole) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role]);
 const actionText = (action: string) => ({
   'workspace.create': '创建工作区',
+  'workspace.update': '修改工作区名称',
+  'workspace.leave': '退出工作区',
+  'workspace.delete': '删除工作区',
   'batch.create': '创建批次',
   'batch.update': '修改批次信息',
   'batch.delete': '删除批次',
@@ -34,7 +39,6 @@ const formatDate = formatDateTime;
 const canView = computed(() => store.canManageWorkspace);
 
 function navigate(page: Page) { void router.push(page === 'overview' ? '/workspace' : `/${page}`); }
-async function selectWorkspace(id: string) { showWorkspace.value = false; await store.select(id); }
 async function refresh() {
   if (refreshing.value || !canView.value) return;
   refreshing.value = true;
@@ -60,7 +64,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
     </section>
   </MobileShell>
 
-  <van-popup v-model:show="showWorkspace" position="bottom" round data-ai-id="workspace-picker"><van-cell title="切换工作区" /><van-cell v-for="workspace in store.workspaces" :key="workspace.id" :title="workspace.name" :label="roleText(workspace.role)" is-link :data-ai-id="`workspace-option-${workspace.id}`" @click="selectWorkspace(workspace.id)" /></van-popup>
+  <WorkspacePicker v-model:show="showWorkspace" v-model:show-create="showWorkspaceCreate" />
 </template>
 
 <style scoped>

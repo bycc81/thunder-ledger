@@ -7,12 +7,14 @@ import MobileShell from '../layouts/MobileShell.vue';
 import { useAuthStore } from '../stores/auth';
 import { useWorkspaceStore, type WorkspaceRole } from '../stores/workspace';
 import DangerConfirmDialog from '../components/DangerConfirmDialog.vue';
+import WorkspacePicker from '../components/WorkspacePicker.vue';
 
 type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
 const router = useRouter();
 const auth = useAuthStore();
 const store = useWorkspaceStore();
 const showWorkspace = ref(false);
+const showWorkspaceCreate = ref(false);
 const showLogoutConfirm = ref(false);
 const showPasswordChange = ref(false);
 const currentPassword = ref('');
@@ -22,7 +24,6 @@ const changingPassword = ref(false);
 const roleText = (role: WorkspaceRole) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role]);
 
 function navigate(page: Page) { void router.push(page === 'overview' ? '/workspace' : `/${page}`); }
-async function selectWorkspace(id: string) { showWorkspace.value = false; await store.select(id); }
 async function logout() {
   auth.logout();
   store.clear();
@@ -48,7 +49,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
       <section class="profile-section" data-ai-id="profile-actions"><h2>账户操作</h2><van-button block class="account-action" plain data-ai-id="profile-password-change" @click="openPasswordChange">修改密码</van-button><van-button v-if="auth.isSystemAdmin" block class="account-action" plain data-ai-id="account-management-entry" @click="router.push('/accounts')">账号管理</van-button><van-button block class="logout-button" plain type="danger" data-ai-id="profile-logout" @click="showLogoutConfirm = true">退出登录</van-button></section>
     </section>
   </MobileShell>
-  <van-popup v-model:show="showWorkspace" position="bottom" round data-ai-id="workspace-picker"><van-cell title="切换工作区" /><van-cell v-for="workspace in store.workspaces" :key="workspace.id" :title="workspace.name" :label="roleText(workspace.role)" is-link :data-ai-id="`workspace-option-${workspace.id}`" @click="selectWorkspace(workspace.id)" /></van-popup>
+  <WorkspacePicker v-model:show="showWorkspace" v-model:show-create="showWorkspaceCreate" />
   <van-dialog v-model:show="showPasswordChange" title="修改密码" show-cancel-button :confirm-button-text="changingPassword ? '修改中' : '确认修改'" :confirm-button-disabled="changingPassword" data-ai-id="password-change-dialog" @confirm="changePassword"><van-field v-model="currentPassword" label="当前密码" type="password" data-ai-id="password-current" /><van-field v-model="newPassword" label="新密码" type="password" data-ai-id="password-new" /><van-field v-model="passwordConfirm" label="确认密码" type="password" data-ai-id="password-confirm" /></van-dialog>
   <DangerConfirmDialog v-model:show="showLogoutConfirm" title="退出登录" message="退出后需要重新登录才能继续操作。" confirm-text="退出" ai-id="profile-logout-confirm" @confirm="logout" />
 </template>

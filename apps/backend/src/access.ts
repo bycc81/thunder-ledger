@@ -153,6 +153,43 @@ export async function registerAccessRoutes(app: FastifyInstance): Promise<void> 
   app.get('/api/workspaces', async (request, reply) => { const r = request as Req; if (!(await auth(r, reply))) return; if (r.access!.superAdmin) return (await getPool().query("SELECT w.id,w.name,w.kind,'owner' AS role FROM workspaces w WHERE w.deleted_at IS NULL ORDER BY w.name")).rows; if (rejectLegacyAccount(r, reply)) return; return (await getPool().query('SELECT w.id,w.name,w.kind,wm.role FROM workspaces w JOIN workspace_members wm ON wm.workspace_id=w.id WHERE wm.user_id=$1 AND w.deleted_at IS NULL ORDER BY w.name', [r.access!.id])).rows; });
   app.post<{ Body: { name?: string; kind?: 'personal'|'collaborative' } }>('/api/workspaces', async (request, reply) => { const r=request as Req; if (!(await auth(r,reply))) return; if (rejectLegacyAccount(r, reply)) return; const name=request.body?.name?.trim(); if(!name) return reply.code(400).send({code:'INVALID_WORKSPACE'}); const id=randomUUID(); await getPool().query('INSERT INTO workspaces(id,name,kind,created_by) VALUES($1,$2,$3,$4)',[id,name,request.body?.kind==='collaborative'?'collaborative':'personal',r.access!.id]); await getPool().query('INSERT INTO workspace_members(workspace_id,user_id,role) VALUES($1,$2,$3)',[id,r.access!.id,'owner']); await audit(id,r.access!.id,'workspace.create','workspace',id); return {id,name}; });
 
+  app.get<{ Params: { id: string } }>('/api/workspaces/:id/management', async (request, reply) => {
+    const r = request as Req; if (!(await auth(r, reply))) return;
+    const workspace = (await getPool().query(`SELECT w.id,w.name,w.kind,(w.created_by=$2) AS "isCreator",(SELECT COUNT(*)::int FROM collaboration_batches b WHERE b.workspace_id=w.id) AS "batchCount" FROM workspaces w WHERE w.id=$1 AND w.deleted_at IS NULL AND ($3::boolean OR EXISTS (SELECT 1 FROM workspace_members wm WHERE wm.workspace_id=w.id AND wm.user_id=$2))`, [request.params.id, r.access!.id, r.access!.superAdmin])).rows[0];
+    if (!workspace) return reply.code(404).send({ code: 'WORKSPACE_NOT_FOUND' });
+    return workspace;
+  });
+  app.patch<{ Params: { id: string }; Body: { name?: string } }>('/api/workspaces/:id', async (request, reply) => {
+    const r = request as Req; if (!(await auth(r, reply))) return; const name = request.body?.name?.trim();
+    if (!name) return reply.code(400).send({ code: 'INVALID_WORKSPACE', message: '请填写工作区名称' });
+    const result = await getPool().query('UPDATE workspaces SET name=$2 WHERE id=$1 AND deleted_at IS NULL AND created_by=$3 RETURNING id,name', [request.params.id, name, r.access!.id]);
+    if (!result.rowCount) return reply.code(403).send({ code: 'WORKSPACE_CREATOR_REQUIRED', message: '只有创建人可以修改工作区' });
+    await audit(request.params.id, r.access!.id, 'workspace.update', 'workspace', request.params.id, { name });
+    return result.rows[0];
+  });
+  app.post<{ Params: { id: string } }>('/api/workspaces/:id/leave', async (request, reply) => {
+    const r = request as Req; if (!(await auth(r, reply))) return;
+    const workspace = (await getPool().query('SELECT created_by FROM workspaces WHERE id=$1 AND deleted_at IS NULL', [request.params.id])).rows[0] as { created_by: string } | undefined;
+    if (!workspace) return reply.code(404).send({ code: 'WORKSPACE_NOT_FOUND' });
+    if (workspace.created_by === r.access!.id) return reply.code(400).send({ code: 'WORKSPACE_CREATOR_CANNOT_LEAVE', message: '创建人不能退出自己创建的工作区' });
+    const result = await getPool().query('DELETE FROM workspace_members WHERE workspace_id=$1 AND user_id=$2 RETURNING workspace_id', [request.params.id, r.access!.id]);
+    if (!result.rowCount) return reply.code(403).send({ code: 'WORKSPACE_FORBIDDEN', message: '你不是该工作区成员' });
+    await audit(request.params.id, r.access!.id, 'workspace.leave', 'workspace_member', request.params.id);
+    return { ok: true };
+  });
+  app.delete<{ Params: { id: string } }>('/api/workspaces/:id', async (request, reply) => {
+    const r = request as Req; if (!(await auth(r, reply))) return;
+    const result = await getPool().query(`UPDATE workspaces w SET deleted_at=now() WHERE w.id=$1 AND w.deleted_at IS NULL AND w.created_by=$2 AND NOT EXISTS (SELECT 1 FROM collaboration_batches b WHERE b.workspace_id=w.id) RETURNING w.id`, [request.params.id, r.access!.id]);
+    if (!result.rowCount) {
+      const workspace = (await getPool().query('SELECT created_by FROM workspaces WHERE id=$1 AND deleted_at IS NULL', [request.params.id])).rows[0] as { created_by: string } | undefined;
+      if (!workspace) return reply.code(404).send({ code: 'WORKSPACE_NOT_FOUND' });
+      if (workspace.created_by !== r.access!.id) return reply.code(403).send({ code: 'WORKSPACE_CREATOR_REQUIRED', message: '只有创建人可以删除工作区' });
+      return reply.code(409).send({ code: 'WORKSPACE_HAS_BATCHES', message: '该工作区已有批次，暂时不能删除' });
+    }
+    await audit(request.params.id, r.access!.id, 'workspace.delete', 'workspace', request.params.id);
+    return { ok: true };
+  });
+
   app.post<{ Params:{id:string}; Body:{username?:string; role?:string} }>('/api/workspaces/:id/invitations', async (request, reply) => { const r=request as Req; if(!(await auth(r,reply))) return; const rid=await accessRole(r,request.params.id); if(!canManage(rid)) return reply.code(403).send({code:'FORBIDDEN'}); const rawUsername=request.body?.username; const inviteRole=request.body?.role; if(!validUsername(rawUsername) || !['admin','editor','viewer'].includes(inviteRole??'')) return reply.code(400).send({code:'INVALID_INVITATION',message:'请填写用户名并选择角色'}); const username=rawUsername.trim(); if ((await getPool().query('SELECT 1 FROM users WHERE username=$1',[username])).rowCount) return reply.code(409).send({code:'USERNAME_EXISTS',message:'该用户名已注册，请使用“加入已有账号”'}); const token=randomBytes(32).toString('hex'); const id=randomUUID(); await getPool().query('INSERT INTO invitations(id,workspace_id,email_or_username,role,token_hash,expires_at,invited_by) VALUES($1,$2,$3,$4,$5,now()+interval \'7 days\',$6)',[id,request.params.id,username,inviteRole,hashToken(token),r.access!.id]); await audit(request.params.id,r.access!.id,'invitation.create','invitation',id,{role:inviteRole}); return {id,token,expiresIn:604800}; });
   app.post<{ Params:{id:string}; Body:{username?:string; role?:string} }>('/api/workspaces/:id/members/by-username', async (request, reply) => { const r=request as Req; if(!(await auth(r,reply))) return; const rid=await accessRole(r,request.params.id); if(!canManage(rid)) return reply.code(403).send({code:'FORBIDDEN'}); const rawUsername=request.body?.username; const memberRole=request.body?.role; if(!validUsername(rawUsername) || !['admin','editor','viewer'].includes(memberRole??'')) return reply.code(400).send({code:'INVALID_MEMBER',message:'请填写已注册用户名并选择角色'}); const user=(await getPool().query("SELECT id FROM users WHERE username=$1 AND status='active'",[rawUsername.trim()])).rows[0] as {id:string}|undefined; if(!user)return reply.code(404).send({code:'ACCOUNT_NOT_FOUND',message:'未找到可加入的已注册账号'}); const existing=await role(user.id,request.params.id); if(existing)return reply.code(409).send({code:'ALREADY_MEMBER',message:'该账号已是当前工作区成员'}); await getPool().query('INSERT INTO workspace_members(workspace_id,user_id,role) VALUES($1,$2,$3)',[request.params.id,user.id,memberRole]); await audit(request.params.id,r.access!.id,'member.add.existing','workspace_member',user.id,{role:memberRole}); return {ok:true}; });
   app.patch<{ Params:{id:string; userId:string}; Body:{role?:string} }>('/api/workspaces/:id/members/:userId', async (request, reply) => { const r=request as Req; if(!(await auth(r,reply))) return; const rid=await accessRole(r,request.params.id); if(!canManage(rid)) return reply.code(403).send({code:'FORBIDDEN'}); if(!['admin','editor','viewer'].includes(request.body?.role??'')) return reply.code(400).send({code:'INVALID_ROLE'}); const target=await role(request.params.userId,request.params.id); if(target==='owner' || !target) return reply.code(400).send({code:'OWNER_PROTECTED'}); await getPool().query('UPDATE workspace_members SET role=$3 WHERE workspace_id=$1 AND user_id=$2',[request.params.id,request.params.userId,request.body!.role]); await audit(request.params.id,r.access!.id,'member.role.update','workspace_member',request.params.userId,{role:request.body!.role}); return {ok:true}; });

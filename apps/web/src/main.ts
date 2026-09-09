@@ -30,6 +30,7 @@ import App from './App.vue';
 import LoginPage from './pages/LoginPage.vue';
 import RegisterPage from './pages/RegisterPage.vue';
 import WorkspacePage from './pages/WorkspacePage.vue';
+import WorkspaceManagementPage from './pages/WorkspaceManagementPage.vue';
 import BatchesPage from './pages/BatchesPage.vue';
 import BatchDetailPage from './pages/BatchDetailPage.vue';
 import MembersPage from './pages/MembersPage.vue';
@@ -51,6 +52,7 @@ const router = createRouter({
     { path: '/login', component: LoginPage },
     { path: '/register', component: RegisterPage },
     { path: '/workspace', component: WorkspacePage, meta: { requiresAuth: true } },
+    { path: '/workspace/manage', component: WorkspaceManagementPage, meta: { requiresAuth: true } },
     { path: '/batches', component: BatchesPage, meta: { requiresAuth: true } },
     { path: '/batches/:id', component: BatchDetailPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/inventory', component: InventoryPage, meta: { requiresAuth: true } },
