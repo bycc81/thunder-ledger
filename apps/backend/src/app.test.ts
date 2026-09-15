@@ -1,9 +1,65 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildApp } from './app.js';
+import { compareInventoryTimelineEvents } from './cost-ledger.js';
+import { isSameOccurredAt, purchaseBusinessDate, purchaseCorrectionFixedFields } from './inventory.js';
+import { calculateSettlementMemberNet, settlementProfitPercentageBasisPoints } from './settlements.js';
 
 process.env.SESSION_SECRET = 'test-secret-only';
 process.env.DATABASE_URL = 'postgres://test:test@localhost:5432/test';
+
+test('purchase business date keeps the Shanghai calendar date at UTC day boundary', () => {
+  const occurredAt = '2026-09-09T16:00:00.000Z';
+  assert.equal(purchaseBusinessDate(occurredAt), '2026-09-10');
+  assert.equal(isSameOccurredAt(new Date(occurredAt), occurredAt), true);
+});
+
+test('purchase correction ignores legacy purchased_on mismatches', () => {
+  const occurredAt = '2026-09-09T16:00:00.000Z';
+  assert.deepEqual(
+    purchaseCorrectionFixedFields({ channelId: 'channel-1', occurredAt }, { channelId: 'channel-1', occurredAt }),
+    []
+  );
+  assert.deepEqual(
+    purchaseCorrectionFixedFields({ channelId: 'channel-1', occurredAt }, { channelId: 'channel-2', occurredAt }),
+    ['采购渠道']
+  );
+  assert.deepEqual(
+    purchaseCorrectionFixedFields({ channelId: 'channel-1', occurredAt }, { channelId: 'channel-1', occurredAt: '2026-09-09T17:00:00.000Z' }),
+    ['采购时间']
+  );
+});
+
+test('inventory timeline sorts timestamps by epoch, not locale date strings', () => {
+  const purchase = { id: 'purchase', kind: 'purchase' as const, occurredAtMs: Date.parse('2026-09-09T16:00:00.000Z') };
+  const sale = { id: 'sale', kind: 'sale' as const, occurredAtMs: Date.parse('2026-09-10T02:12:00.000Z') };
+  assert.ok(compareInventoryTimelineEvents(purchase, sale) < 0);
+  assert.ok(compareInventoryTimelineEvents(sale, purchase) > 0);
+});
+
+test('settlement splits net profit and returns the configured cost share exactly once', () => {
+  const profit = 1870;
+  const dandanNet = calculateSettlementMemberNet({ profitAmount: profit, costRecovery: 0, salesReceived: 5000, expensesPaid: 0 });
+  const adminNet = calculateSettlementMemberNet({ profitAmount: profit, costRecovery: 1260, salesReceived: 0, expensesPaid: 0 });
+  assert.equal(dandanNet, -3130);
+  assert.equal(adminNet, 3130);
+  assert.equal(dandanNet + adminNet, 0);
+});
+
+test('settlement supports an equal default cost split independently from profit split', () => {
+  const dandanNet = calculateSettlementMemberNet({ profitAmount: 1870, costRecovery: 630, salesReceived: 5000, expensesPaid: 0 });
+  const adminNet = calculateSettlementMemberNet({ profitAmount: 1870, costRecovery: 630, salesReceived: 0, expensesPaid: 0 });
+  assert.equal(dandanNet, -2500);
+  assert.equal(adminNet, 2500);
+  assert.equal(dandanNet + adminNet, 0);
+});
+
+test('settlement accepts profit percentages with up to two decimal places', () => {
+  assert.equal(settlementProfitPercentageBasisPoints(33.33), 3333);
+  assert.equal(settlementProfitPercentageBasisPoints(66.67), 6667);
+  assert.equal(settlementProfitPercentageBasisPoints(33.333), null);
+  assert.equal(settlementProfitPercentageBasisPoints(-1), null);
+});
 
 test('health endpoint is available', async () => {
   const app = await buildApp();

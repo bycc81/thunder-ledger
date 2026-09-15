@@ -43,6 +43,10 @@ import PurchaseFormPage from './pages/PurchaseFormPage.vue';
 import TransactionsPage from './pages/TransactionsPage.vue';
 import TransactionFormPage from './pages/TransactionFormPage.vue';
 import AccountManagementPage from './pages/AccountManagementPage.vue';
+import SettlementPage from './pages/SettlementPage.vue';
+import SettlementCreatePage from './pages/SettlementCreatePage.vue';
+import SettlementDetailPage from './pages/SettlementDetailPage.vue';
+import SettlementAdjustmentDetailPage from './pages/SettlementAdjustmentDetailPage.vue';
 import { useAuthStore } from './stores/auth';
 const router = createRouter({
   history: createWebHistory(),
@@ -60,6 +64,10 @@ const router = createRouter({
     { path: '/batches/:id/transactions', component: TransactionsPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/transactions/sales/new', component: TransactionFormPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/transactions/expenses/new', component: TransactionFormPage, meta: { requiresAuth: true } },
+    { path: '/batches/:id/settlements', component: SettlementPage, meta: { requiresAuth: true } },
+    { path: '/batches/:id/settlements/new', component: SettlementCreatePage, meta: { requiresAuth: true } },
+    { path: '/batches/:id/settlements/:settlementId', component: SettlementDetailPage, meta: { requiresAuth: true } },
+    { path: '/batches/:id/settlement-adjustments/:adjustmentId', component: SettlementAdjustmentDetailPage, meta: { requiresAuth: true } },
     { path: '/members', component: MembersPage, meta: { requiresAuth: true } },
     { path: '/audit', component: OperationRecordsPage, meta: { requiresAuth: true } },
     { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },

@@ -10,6 +10,7 @@
 | `transaction-expenses-tab` | 控件 | 切换费用栏 |
 | `sale-list` | 区域 | 销售记录列表 |
 | `sale-item-{saleId}` | 列表项 | 指定销售记录 |
+| `sale-status-{saleId}` | 状态标签 | 指定销售记录的已结账或已撤销状态 |
 | `sale-create` | 控件 | 打开销售表单 |
 | `sale-form-page` | 页面根 | 记录销售 |
 | `sale-product-select` | 选择器 | 选择批次商品库存 |
@@ -27,6 +28,7 @@
 | `sale-reversal-cancel` | 控件 | 取消撤销销售 |
 | `expense-list` | 区域 | 费用记录列表 |
 | `expense-item-{expenseId}` | 列表项 | 指定费用记录 |
+| `expense-status-{expenseId}` | 状态标签 | 指定费用记录的已结账或已撤销状态 |
 | `expense-create` | 控件 | 打开费用表单 |
 | `expense-form-page` | 页面根 | 记录费用 |
 | `expense-type-select` | 选择器 | 邮费或自定义费用类型 |
