@@ -60,9 +60,9 @@ onMounted(load)
       <p class="muted">关联原账单 · {{ detail.status === 'pending' ? '待确认' : '已确认' }}</p>
       <section class="card impact-card" data-ai-id="settlement-adjustment-impact-summary">
         <small>更正影响</small>
-        <strong>商品成本 ¥{{ detail.oldCost }} → ¥{{ detail.newCost }}</strong>
-        <p class="impact-change">成本变化 <b>{{ signedAmount(amountChange(detail.oldCost, detail.newCost)) }}</b></p>
-        <span class="impact-note">采购付款分摊和成本承担的变化仅用于计算本次结算差额，最终以转账建议为准。</span>
+        <strong>受影响销售成本 ¥{{ detail.oldCost }} → ¥{{ detail.newCost }}</strong>
+        <p class="impact-change">成本差额 <b>{{ signedAmount(amountChange(detail.oldCost, detail.newCost)) }}</b></p>
+        <span class="impact-note">上述内容仅用于计算本次调整，不代表新增采购付款；实际转账请以“转账建议”为准。</span>
       </section>
       <h2>成员差额</h2>
       <section class="list" data-ai-id="settlement-adjustment-member-list">
