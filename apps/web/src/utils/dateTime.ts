@@ -2,6 +2,10 @@ function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
 
+export function localDateTime(value: Date = new Date()): string {
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+}
+
 export function formatDateTime(value?: string | null): string {
   if (!value) return '--';
   const date = new Date(value);

@@ -4,7 +4,7 @@ import { showFailToast, showSuccessToast } from 'vant';
 import { useRoute, useRouter } from 'vue-router';
 import { api, type InventoryDetail, type InventoryItem } from '../api';
 import { useWorkspaceStore } from '../stores/workspace';
-import { formatBusinessDate } from '../utils/dateTime';
+import { formatDateTime } from '../utils/dateTime';
 import AppBottomNavigation from '../components/AppBottomNavigation.vue';
 
 const route = useRoute();
@@ -67,8 +67,8 @@ watch([batchId, productId], () => { void load(); });
     <main v-else-if="detail" class="content">
       <header class="detail-heading"><span class="eyebrow">商品库存</span><h1>{{ detail.productName }}</h1></header>
       <section class="summary" data-ai-id="inventory-summary"><div><small>可卖数量</small><strong>{{ detail.availableQuantity }} 件</strong></div><div><small>采购总成本</small><strong>{{ money(detail.totalCost) }}</strong></div></section>
-      <section data-ai-id="inventory-purchase-list"><h2>采购记录</h2><article v-for="purchase in detail.purchases" :key="purchase.id" class="purchase-item" :data-ai-id="`inventory-purchase-item-${purchase.id}`"><div class="purchase-head"><strong>{{ purchase.channelName }}</strong><b>{{ purchase.quantity }} 件 · {{ money(purchase.totalCost) }}</b></div><p>{{ formatBusinessDate(purchase.purchasedOn) }} · {{ purchase.payerUsername }} 付款</p><div class="purchase-cost-row"><small>成本由：{{ shares(purchase) }}</small><button v-if="canEdit" type="button" class="purchase-edit" :data-ai-id="`inventory-purchase-edit-${purchase.id}`" @click="editPurchase(purchase)">编辑</button></div><a v-if="purchase.sourceUrl" :href="purchase.sourceUrl" target="_blank" rel="noreferrer">查看来源</a><p v-if="purchase.note" class="purchase-note">备注：{{ purchase.note }}</p></article></section>
-      <section v-if="detail.adjustments.length" class="adjustment-list" data-ai-id="inventory-writeoff-list"><h2>减少库存记录</h2><article v-for="adjustment in detail.adjustments" :key="adjustment.id" class="purchase-item"><div class="purchase-head"><strong>商品损坏或丢失</strong><b>{{ adjustment.quantity }} 件 · {{ money(adjustment.consumedCost) }}</b></div><p>{{ adjustment.reason }}</p><small>{{ formatBusinessDate(adjustment.createdAt) }} · {{ adjustment.createdByUsername }} 登记</small></article></section>
+      <section data-ai-id="inventory-purchase-list"><h2>采购记录</h2><article v-for="purchase in detail.purchases" :key="purchase.id" class="purchase-item" :data-ai-id="`inventory-purchase-item-${purchase.id}`"><div class="purchase-head"><strong>{{ purchase.channelName }}</strong><b>{{ purchase.quantity }} 件 · {{ money(purchase.totalCost) }}</b></div><p>{{ formatDateTime(purchase.occurredAt) }} · {{ purchase.payerUsername }} 付款</p><div class="purchase-cost-row"><small>成本由：{{ shares(purchase) }}</small><button v-if="canEdit" type="button" class="purchase-edit" :data-ai-id="`inventory-purchase-edit-${purchase.id}`" @click="editPurchase(purchase)">编辑</button></div><a v-if="purchase.sourceUrl" :href="purchase.sourceUrl" target="_blank" rel="noreferrer">查看来源</a><p v-if="purchase.note" class="purchase-note">备注：{{ purchase.note }}</p></article></section>
+      <section v-if="detail.adjustments.length" class="adjustment-list" data-ai-id="inventory-writeoff-list"><h2>减少库存记录</h2><article v-for="adjustment in detail.adjustments" :key="adjustment.id" class="purchase-item"><div class="purchase-head"><strong>商品损坏或丢失</strong><b>{{ adjustment.quantity }} 件 · {{ money(adjustment.consumedCost) }}</b></div><p>{{ adjustment.reason }}</p><small>{{ formatDateTime(adjustment.createdAt) }} · {{ adjustment.createdByUsername }} 登记</small></article></section>
     </main>
     <van-empty v-else description="未找到这件商品的库存记录" data-ai-id="inventory-detail-empty" />
   </div>

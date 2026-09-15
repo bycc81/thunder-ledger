@@ -11,6 +11,7 @@ import { auth, registerAccessRoutes, type AccessRequest } from './access.js';
 import { registerProductRoutes } from './products.js';
 import { registerInventoryRoutes } from './inventory.js';
 import { registerSalesExpenseRoutes } from './sales-expenses.js';
+import { registerSettlementRoutes } from './settlements.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -96,7 +97,9 @@ export async function buildApp(): Promise<FastifyInstance> {
     } catch { /* database may be unavailable during bootstrap or legacy tests */ }
 
     const expectedUser = process.env.ADMIN_USERNAME ?? 'admin';
-    const expectedHash = process.env.ADMIN_PASSWORD_HASH;
+    // Docker Compose uses `$$` to escape bcrypt `$` characters in .env;
+    // Node's --env-file keeps them unchanged during local development.
+    const expectedHash = (process.env.ADMIN_PASSWORD_HASH ?? '').replace(/\$\$/g, '$');
     if (!username || !password || username !== expectedUser || !expectedHash || !(await bcrypt.compare(password, expectedHash))) {
       recordLoginFailure(ip, now);
       return reply.code(401).send({ code: 'INVALID_CREDENTIALS', message: 'Invalid username or password' });
@@ -116,5 +119,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerProductRoutes(app);
   await registerInventoryRoutes(app);
   await registerSalesExpenseRoutes(app);
+  await registerSettlementRoutes(app);
   return app;
 }

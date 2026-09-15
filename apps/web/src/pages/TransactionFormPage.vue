@@ -5,11 +5,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { api, type InventoryItem, type Sale } from '../api';
 import { type BatchMember } from '../stores/workspace';
 import AppBottomNavigation from '../components/AppBottomNavigation.vue';
-import { formatDateTime } from '../utils/dateTime';
+import { formatDateTime, localDateTime } from '../utils/dateTime';
 
 const route = useRoute(); const router = useRouter(); const batchId = computed(() => String(route.params.id)); const isSale = computed(() => route.path.includes('/sales/'));
 const loading = ref(true); const saving = ref(false); const error = ref(''); const products = ref<InventoryItem[]>([]); const members = ref<BatchMember[]>([]); const sales = ref<Sale[]>([]);
-const productId = ref(''); const quantity = ref('1'); const totalPrice = ref(''); const sellerUserId = ref(''); const occurredAt = ref(new Date().toISOString().slice(0, 16)); const note = ref('');
+const productId = ref(''); const quantity = ref('1'); const totalPrice = ref(''); const sellerUserId = ref(''); const occurredAt = ref(localDateTime()); const note = ref('');
 const expenseType = ref<'shipping' | 'custom'>('shipping'); const expenseName = ref('邮费'); const amount = ref(''); const payerUserId = ref(''); const saleId = ref('');
 const selectedProduct = computed(() => products.value.find((item) => item.productId === productId.value));
 async function load() { loading.value = true; error.value = ''; try { const [inventory, participants] = await Promise.all([api.get<InventoryItem[]>(`/batches/${batchId.value}/inventory`), api.get<BatchMember[]>(`/batches/${batchId.value}/members`)]); products.value = inventory.data; members.value = participants.data; if (!isSale.value) sales.value = (await api.get<Sale[]>(`/batches/${batchId.value}/sales`)).data.filter((item) => !item.reversalReason); } catch { error.value = '表单加载失败，请返回后重试'; } finally { loading.value = false; } }
@@ -26,6 +26,7 @@ onMounted(load);
     <main v-else class="content">
       <template v-if="isSale">
         <p v-if="selectedProduct" class="notice" data-ai-id="sale-available-quantity">{{ selectedProduct.productName }} 当前可卖：{{ selectedProduct.availableQuantity }} 件。不需要选择从哪里买。</p>
+        <p class="notice" data-ai-id="sale-time-freeze-notice">成交时间保存后不可修改，请填写实际成交时间。</p>
         <van-field label="商品" required data-ai-id="sale-product-select"><template #input><select v-model="productId"><option value="" disabled>选择商品</option><option v-for="product in products" :key="product.productId" :value="product.productId">{{ product.productName }}</option></select></template></van-field>
         <van-field v-model="quantity" label="数量" required type="digit" data-ai-id="sale-quantity" /><van-field v-model="totalPrice" label="成交总价" required inputmode="decimal" placeholder="例如：99.0" data-ai-id="sale-price"><template #button>元</template></van-field>
         <van-field label="卖出人" required data-ai-id="sale-seller-select"><template #input><select v-model="sellerUserId"><option value="" disabled>选择卖出人</option><option v-for="member in members" :key="member.id" :value="member.id">{{ member.username }}</option></select></template></van-field><p class="notice">谁卖出，销售款就记在谁名下。</p>

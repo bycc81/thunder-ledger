@@ -19,7 +19,7 @@ export async function auth(request: Req, reply: FastifyReply): Promise<boolean> 
     await request.jwtVerify(); const c = request.user as Claims; if (!c.sub) throw new Error('missing subject');
     if (UUID_RE.test(c.sub)) { const row = (await getPool().query('SELECT username,status,session_version FROM users WHERE id=$1', [c.sub])).rows[0]; if (!row || row.status !== 'active' || c.sessionVersion !== row.session_version) throw new Error('inactive user'); request.access = { id: c.sub, username: row.username, superAdmin: row.username === (process.env.ADMIN_USERNAME ?? 'admin') }; }
     else if (c.sub === (process.env.ADMIN_USERNAME ?? 'admin') && c.role === 'admin') {
-      const name = process.env.ADMIN_USERNAME ?? 'admin'; const hash = process.env.ADMIN_PASSWORD_HASH;
+      const name = process.env.ADMIN_USERNAME ?? 'admin'; const hash = (process.env.ADMIN_PASSWORD_HASH ?? '').replace(/\$\$/g, '$');
       if (!hash || hash.includes('replace-with-a-bcrypt-hash')) throw new Error('admin password is not configured');
       let row: { id: string; status: string; session_version: number } | undefined;
       try {
