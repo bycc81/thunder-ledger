@@ -6,6 +6,10 @@ import { getPool } from './client.js';
 
 const migrationsDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../migrations');
 
+function normalizeMigrationSql(sql: string): string {
+  return sql.replace(/\r\n?/g, '\n');
+}
+
 async function main(): Promise<void> {
   const pool = getPool();
   await pool.query('CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())');
@@ -13,7 +17,7 @@ async function main(): Promise<void> {
   const files = (await readdir(migrationsDir)).filter((file) => file.endsWith('.sql')).sort();
   for (const file of files) {
     const version = file.replace(/\.sql$/, '');
-    const sql = await readFile(resolve(migrationsDir, file), 'utf8');
+    const sql = normalizeMigrationSql(await readFile(resolve(migrationsDir, file), 'utf8'));
     const checksum = createHash('sha256').update(sql).digest('hex');
     const existing = (await pool.query('SELECT checksum FROM schema_migrations WHERE version = $1', [version])).rows[0] as { checksum?: string | null } | undefined;
     if (existing) {
