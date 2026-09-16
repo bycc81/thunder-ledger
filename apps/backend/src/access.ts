@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { getPool } from './db/client.js';
+import { setSessionCookie } from './auth-session.js';
 
 type Claims = { sub?: string; username?: string; role?: string; sessionVersion?: number };
 export type AccessRequest = FastifyRequest & { access?: { id: string; username: string; superAdmin: boolean } };
@@ -16,7 +17,7 @@ function rejectLegacyAccount(request: Req, reply: FastifyReply): boolean {
 
 export async function auth(request: Req, reply: FastifyReply): Promise<boolean> {
   try {
-    await request.jwtVerify(); const c = request.user as Claims; if (!c.sub) throw new Error('missing subject');
+    await request.jwtVerify({ onlyCookie: true }); const c = request.user as Claims; if (!c.sub) throw new Error('missing subject');
     if (UUID_RE.test(c.sub)) { const row = (await getPool().query('SELECT username,status,session_version FROM users WHERE id=$1', [c.sub])).rows[0]; if (!row || row.status !== 'active' || c.sessionVersion !== row.session_version) throw new Error('inactive user'); request.access = { id: c.sub, username: row.username, superAdmin: row.username === (process.env.ADMIN_USERNAME ?? 'admin') }; }
     else if (c.sub === (process.env.ADMIN_USERNAME ?? 'admin') && c.role === 'admin') {
       const name = process.env.ADMIN_USERNAME ?? 'admin'; const hash = (process.env.ADMIN_PASSWORD_HASH ?? '').replace(/\$\$/g, '$');
@@ -110,7 +111,8 @@ export async function registerAccessRoutes(app: FastifyInstance): Promise<void> 
   app.post<{ Body: { username?: string; password?: string; captchaId?: string; captchaCode?: string } }>('/api/auth/db-login', async (request, reply) => {
     const { username, password } = request.body ?? {}; const row = (await getPool().query('SELECT id,username,password_hash,status,session_version FROM users WHERE username=$1', [username ?? ''])).rows[0];
     if (!row || row.status !== 'active' || !password || !(await bcrypt.compare(password, row.password_hash))) return reply.code(401).send({ code: 'INVALID_CREDENTIALS', message: '用户名或密码错误' });
-    return { accessToken: await app.jwt.sign({ sub: row.id, username: row.username, sessionVersion: row.session_version }, { expiresIn: '8h' }) };
+    await setSessionCookie(app, reply, { sub: row.id, username: row.username, sessionVersion: row.session_version });
+    return { authenticated: true };
   });
 
   app.post<{ Body: { currentPassword?: string; password?: string } }>('/api/auth/password', async (request, reply) => {
@@ -122,7 +124,8 @@ export async function registerAccessRoutes(app: FastifyInstance): Promise<void> 
     const sessionVersion = row.session_version + 1;
     await getPool().query('UPDATE users SET password_hash=$2,session_version=$3 WHERE id=$1', [r.access!.id, await bcrypt.hash(password.trim(), 12), sessionVersion]);
     await audit(null, r.access!.id, 'account.password.change', 'user', r.access!.id);
-    return { accessToken: await app.jwt.sign({ sub: r.access!.id, username: r.access!.username, sessionVersion }, { expiresIn: '8h' }) };
+    await setSessionCookie(app, reply, { sub: r.access!.id, username: r.access!.username, sessionVersion });
+    return { ok: true };
   });
 
   app.get('/api/admin/accounts', async (request, reply) => {

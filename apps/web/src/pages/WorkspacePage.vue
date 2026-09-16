@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { showFailToast, showSuccessToast } from 'vant';
 import { useRouter } from 'vue-router';
 import { api } from '../api';
-import { useAuthStore } from '../stores/auth';
 import { useWorkspaceStore, type Batch } from '../stores/workspace';
 import MobileShell from '../layouts/MobileShell.vue';
 import WorkspaceOverview from '../components/WorkspaceOverview.vue';
 
 const router = useRouter();
-const auth = useAuthStore();
 const store = useWorkspaceStore();
 const showWorkspace = ref(false);
 const showBatchCreate = ref(false);
@@ -43,16 +41,9 @@ function openBatch(batch: Batch) {
   void router.push(`/batches/${batch.id}`);
 }
 
-function expired() {
-  auth.logout();
-  void router.replace({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } });
-}
-
 onMounted(async () => {
-  window.addEventListener('auth:expired', expired);
   await store.load();
 });
-onBeforeUnmount(() => window.removeEventListener('auth:expired', expired));
 </script>
 
 <template>

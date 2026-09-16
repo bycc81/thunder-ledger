@@ -80,22 +80,30 @@ const router = createRouter({
     { path: '/products/:id/edit', component: ProductFormPage, meta: { requiresAuth: true } },
   ],
 });
-router.beforeEach((to) => {
-  if (to.meta.requiresAuth && !localStorage.getItem('accessToken')) return { path: '/login', query: { redirect: to.fullPath } };
-  if ((to.path === '/login' || to.path === '/register') && localStorage.getItem('accessToken')) return '/workspace';
+const pinia = createPinia();
+let authRestored = false;
+router.beforeEach(async (to) => {
+  const auth = useAuthStore(pinia);
+  if (!authRestored) {
+    await auth.restore();
+    authRestored = true;
+  }
+  if (to.meta.requiresAuth && !auth.loggedIn) return { path: '/login', query: { redirect: to.fullPath } };
+  if ((to.path === '/login' || to.path === '/register') && auth.loggedIn) return '/workspace';
   return true;
 });
-const pinia = createPinia();
 const app = createApp(App).use(pinia).use(router);
 [Button, Cell, CellGroup, Dialog, DropdownItem, DropdownMenu, Empty, Field, Form, Icon, Loading, NavBar, Picker, Popover, Popup, Radio, RadioGroup, Search, Tabbar, TabbarItem, Tag].forEach((component) => app.use(component));
 
+window.addEventListener('auth:expired', async () => {
+  const auth = useAuthStore(pinia);
+  if (!auth.loggedIn) return;
+  await auth.logout();
+  await router.replace({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } });
+});
+
 async function bootstrap() {
   await router.isReady();
-  const auth = useAuthStore(pinia);
-  await auth.restore();
-  if (router.currentRoute.value.meta.requiresAuth && !auth.loggedIn) {
-    await router.replace({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } });
-  }
   app.mount('#app');
 }
 

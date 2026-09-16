@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
@@ -13,14 +14,23 @@ import { registerInventoryRoutes } from './inventory.js';
 import { registerSalesExpenseRoutes } from './sales-expenses.js';
 import { registerSettlementRoutes } from './settlements.js';
 import { registerReportRoutes } from './reports.js';
+import { clearSessionCookie, SESSION_COOKIE_NAME, setSessionCookie } from './auth-session.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
   await app.register(helmet);
-  await app.register(cors, { origin: allowedOrigins() });
+  const origins = allowedOrigins();
+  await app.register(cors, { origin: origins, credentials: true });
   const sessionSecret = process.env.SESSION_SECRET;
   if (!sessionSecret) throw new Error('SESSION_SECRET is required');
-  await app.register(jwt, { secret: sessionSecret });
+  await app.register(cookie);
+  await app.register(jwt, { secret: sessionSecret, cookie: { cookieName: SESSION_COOKIE_NAME, signed: false } });
+
+  app.addHook('preHandler', async (request, reply) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
+    const origin = request.headers.origin;
+    if (origin && !origins.includes(origin)) return reply.code(403).send({ code: 'INVALID_ORIGIN', message: '请求来源不被允许' });
+  });
 
   const captchas = new Map<string, { code: string; expiresAt: number }>();
   const loginFailures = new Map<string, { count: number; windowStartedAt: number; blockedUntil: number }>();
@@ -93,7 +103,8 @@ export async function buildApp(): Promise<FastifyInstance> {
       if (row) {
         if (row.status !== 'active' || !password || !(await bcrypt.compare(password, row.password_hash))) { recordLoginFailure(ip, now); return reply.code(401).send({ code: 'INVALID_CREDENTIALS', message: 'Invalid username or password' }); }
         loginFailures.delete(ip);
-        return { accessToken: await app.jwt.sign({ sub: row.id, username: row.username, sessionVersion: row.session_version }, { expiresIn: '8h' }) };
+        await setSessionCookie(app, reply, { sub: row.id, username: row.username, sessionVersion: row.session_version });
+        return { authenticated: true };
       }
     } catch { /* database may be unavailable during bootstrap or legacy tests */ }
 
@@ -110,9 +121,17 @@ export async function buildApp(): Promise<FastifyInstance> {
       const pool = getPool();
       await pool.query('INSERT INTO users(id,username,password_hash) VALUES($1,$2,$3) ON CONFLICT (username) DO NOTHING', [randomUUID(), expectedUser, expectedHash]);
       const row = (await pool.query('SELECT id,username,status,session_version FROM users WHERE username=$1', [expectedUser])).rows[0] as { id: string; username: string; status: string; session_version: number } | undefined;
-      if (row?.status === 'active') return { accessToken: await app.jwt.sign({ sub: row.id, username: row.username, sessionVersion: row.session_version }, { expiresIn: '8h' }) };
+      if (row?.status === 'active') {
+        await setSessionCookie(app, reply, { sub: row.id, username: row.username, sessionVersion: row.session_version });
+        return { authenticated: true };
+      }
     } catch { /* database may be unavailable during bootstrap or legacy tests */ }
-    return { accessToken: await app.jwt.sign({ sub: username, username, role: 'admin' }, { expiresIn: '8h' }) };
+    await setSessionCookie(app, reply, { sub: username, username, role: 'admin' });
+    return { authenticated: true };
+  });
+  app.post('/api/auth/logout', async (_request, reply) => {
+    clearSessionCookie(reply);
+    return { ok: true };
   });
   app.get('/api/openapi.json', async () => ({ openapi: '3.0.3', info: { title: 'ThunderLedger API', version: '0.1.0' }, paths: {} }));
   await registerAssetRoutes(app);

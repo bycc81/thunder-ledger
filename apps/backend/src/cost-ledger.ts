@@ -35,11 +35,9 @@ function formatBusinessTime(value: string): string {
 
 /** 按发生时间重放一个商品的混合库存；不会把销售绑定到采购记录。 */
 export async function rebuildProductCostLedger(client: PoolClient, batchId: string, productId: string): Promise<{ quantity: number; cost: number; sales: Map<string, SaleCost> }> {
-  const [purchasesResult, salesResult, adjustmentsResult] = await Promise.all([
-    client.query(`SELECT id,quantity,total_cost_tenths::text AS cost,payer_user_id AS "payerUserId",occurred_at AS "occurredAt" FROM inventory_purchases WHERE batch_id=$1 AND product_id=$2`, [batchId, productId]),
-    client.query(`SELECT s.id,s.quantity,s.occurred_at AS "occurredAt" FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id WHERE s.batch_id=$1 AND s.product_id=$2 AND sr.sale_id IS NULL`, [batchId, productId]),
-    client.query('SELECT id,quantity,created_at AS "occurredAt" FROM inventory_adjustments WHERE batch_id=$1 AND product_id=$2', [batchId, productId]),
-  ]);
+  const purchasesResult = await client.query(`SELECT id,quantity,total_cost_tenths::text AS cost,payer_user_id AS "payerUserId",occurred_at AS "occurredAt" FROM inventory_purchases WHERE batch_id=$1 AND product_id=$2`, [batchId, productId]);
+  const salesResult = await client.query(`SELECT s.id,s.quantity,s.occurred_at AS "occurredAt" FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id WHERE s.batch_id=$1 AND s.product_id=$2 AND sr.sale_id IS NULL`, [batchId, productId]);
+  const adjustmentsResult = await client.query('SELECT id,quantity,created_at AS "occurredAt" FROM inventory_adjustments WHERE batch_id=$1 AND product_id=$2', [batchId, productId]);
   const purchaseIds = purchasesResult.rows.map((row) => row.id as string);
   const sharesResult = purchaseIds.length ? await client.query('SELECT purchase_id AS "purchaseId",user_id AS "userId",amount_tenths::text AS amount FROM purchase_cost_shares WHERE purchase_id=ANY($1::uuid[])', [purchaseIds]) : { rows: [] as Array<{ purchaseId: string; userId: string; amount: string }> };
   const shares = new Map<string, Array<{ userId: string; amount: number }>>(); for (const row of sharesResult.rows) shares.set(row.purchaseId, [...(shares.get(row.purchaseId) ?? []), { userId: row.userId, amount: Number(row.amount) }]);

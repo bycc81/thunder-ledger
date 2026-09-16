@@ -82,7 +82,8 @@ onMounted(load)
           ><b>¥{{ transfer.amount }}</b>
         </div>
       </section>
-      <van-button v-if="detail.status === 'pending'" block type="primary" :loading="confirming" data-ai-id="settlement-adjustment-confirm" @click="confirm">确认调整单</van-button>
+      <van-button v-if="detail.status === 'pending' && detail.canManage" block type="primary" :loading="confirming" data-ai-id="settlement-adjustment-confirm" @click="confirm">确认调整单</van-button>
+      <p v-else-if="detail.status === 'pending'" class="readonly" data-ai-id="settlement-adjustment-readonly">只读权限 · 当前角色只能查看调整单。</p>
     </main>
   </div>
 </template>
@@ -97,6 +98,9 @@ onMounted(load)
   z-index: 2;
 }
 .content {
+  box-sizing: border-box;
+  width: 100%;
+  overflow-x: hidden;
   padding: 20px 16px 32px;
 }
 .muted,
@@ -106,6 +110,9 @@ small {
 }
 .card,
 .list {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   overflow: hidden;
   border-radius: 10px;
   background: #fff;
@@ -136,16 +143,19 @@ small {
   color: #94a3b8;
   font-size: 12px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 .content h2 {
   margin: 24px 0 9px;
   font-size: 17px;
 }
 .row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  box-sizing: border-box;
+  width: 100%;
   min-height: 62px;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   padding: 10px 12px;
   border-bottom: 1px solid #e4e8f0;
@@ -177,6 +187,12 @@ small {
 .content :deep(.van-button) {
   min-height: 44px;
   margin-top: 24px;
+}
+.readonly {
+  margin: 24px 0 0;
+  color: #71809a;
+  font-size: 13px;
+  text-align: center;
 }
 .state {
   display: grid;

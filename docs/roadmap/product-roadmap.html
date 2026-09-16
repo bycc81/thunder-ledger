@@ -26,12 +26,12 @@
     <tr><td>B2</td><td>商品资料、图片、库存批次、成本流水。</td><td>图片权限、库存数量和成本不变量通过。</td><td><span class="gate verify">已完成</span></td></tr>
     <tr><td>B3</td><td>销售、卖出人、直接费用。</td><td>销售扣库、费用归属和撤销联动通过。</td><td><span class="gate verify">已完成</span></td></tr>
     <tr><td>B4</td><td>移动平均成本流水、阶段账单、采购更正、结算调整单和不可变账单快照。</td><td>订单结账闭环、调整单和账单锁定；后端/前端验证、迁移检查及移动端关键流程通过。</td><td><span class="gate verify">已完成</span></td></tr>
-    <tr><td>B5</td><td>报表、CSV、审计查询、备份恢复门禁。</td><td>功能验收通过；生产上线前完成恢复演练。</td><td><span class="gate verify">功能已完成</span></td></tr>
+    <tr><td>B5</td><td>报表、CSV、审计查询、备份恢复门禁。</td><td>功能验收和本地隔离恢复通过；生产上线前确认 Neon 备份策略。</td><td><span class="gate verify">本地门禁完成</span></td></tr>
     <tr><td>v1.0 上线</td><td>会话安全、四角色回归、生产配置、备份恢复、云端冒烟和回滚。</td><td>全部发布门禁通过，并在生产部署前获得明确确认。</td><td><span class="gate doc">当前阶段</span></td></tr>
     <tr><td>B6</td><td>ChannelAdapter、外部平台同步、多租户预留。</td><td>不改变核心商品、库存、销售和台账模型。</td><td><span class="gate verify">后置</span></td></tr>
   </tbody></table></section>
-  <section><h2>v1.0 上线门禁</h2><div class="principles"><div class="principle"><strong>会话与权限</strong><span>高权限令牌移出 localStorage；完成 owner、admin、editor、viewer 四角色回归。</span></div><div class="principle"><strong>生产与恢复</strong><span>核对 Secret、HTTPS、精确 CORS 和 R2 最小权限；完成隔离恢复演练并明确 RPO/RTO。</span></div><div class="principle"><strong>发布与回滚</strong><span>完成云端冒烟、版本记录和回滚准备；生产部署前再次获得明确确认。</span></div></div></section>
-  <section><h2>当前基线</h2><p>B0 至 B5 及 B1.1 的产品功能已完成。B5 已实现五类报表、CSV 导出、可筛选审计和权限隔离，并于 2026-09-16 通过用户验收。当前不是进入 B6，而是进入 v1.0 上线准备：先完成会话安全、四角色回归、生产配置、备份恢复、云端冒烟和回滚门禁。全部通过后即可正式上线，无需等待 B6；B6 在 v1.0 稳定运行后按真实渠道和 SaaS 需求启动。</p></section>
+  <section><h2>v1.0 上线门禁</h2><div class="principles"><div class="principle"><strong>会话与权限</strong><span>HttpOnly Cookie、本地四角色 API 回归和关键页面 390×844 权限验收已完成；下一步验证正式域名。</span></div><div class="principle"><strong>生产与恢复</strong><span>本地隔离恢复已通过；下一步核对 Secret、HTTPS、精确 CORS、会话域名、R2 最小权限和 Neon RPO/RTO。</span></div><div class="principle"><strong>发布与回滚</strong><span>完成云端冒烟、版本记录和回滚准备；生产部署前再次获得明确确认。</span></div></div></section>
+  <section><h2>当前基线</h2><p>B0 至 B5 及 B1.1 的产品功能已完成。会话安全、四角色 API 回归、关键页面权限验收、本地隔离恢复和构建门禁已于 2026-09-16 完成。当前只剩生产 Secret/域名/Neon/R2 核对、正式域名云端冒烟、版本记录和部署确认；全部通过后即可正式上线，无需等待 B6。B6 在 v1.0 稳定运行后按真实渠道和 SaaS 需求启动。</p></section>
 </main>
 </body>
 </html>
