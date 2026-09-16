@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { showFailToast, showSuccessToast } from 'vant';
 import { useRouter } from 'vue-router';
 import { api } from '../api';
-import { useAuthStore } from '../stores/auth';
 import { useWorkspaceStore, type Batch } from '../stores/workspace';
 import MobileShell from '../layouts/MobileShell.vue';
 import WorkspaceOverview from '../components/WorkspaceOverview.vue';
 import WorkspacePicker from '../components/WorkspacePicker.vue';
 
 const router = useRouter();
-const auth = useAuthStore();
 const store = useWorkspaceStore();
 const showWorkspace = ref(false);
 const showWorkspaceCreate = ref(false);
@@ -40,21 +38,14 @@ function openBatch(batch: Batch) {
   void router.push(`/batches/${batch.id}`);
 }
 
-function expired() {
-  auth.logout();
-  void router.replace({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } });
-}
-
 onMounted(async () => {
-  window.addEventListener('auth:expired', expired);
   await store.load();
 });
-onBeforeUnmount(() => window.removeEventListener('auth:expired', expired));
 </script>
 
 <template>
   <MobileShell page="overview" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
-    <WorkspaceOverview @create-batch="showBatchCreate = true" @create-workspace="showWorkspaceCreate = true" @open-batch="openBatch" @open-products="router.push('/products')" @navigate="navigate" />
+    <WorkspaceOverview @create-batch="showBatchCreate = true" @create-workspace="showWorkspaceCreate = true" @open-batch="openBatch" @open-products="router.push('/products')" @open-reports="router.push('/reports')" @navigate="navigate" />
   </MobileShell>
 
   <WorkspacePicker v-model:show="showWorkspace" v-model:show-create="showWorkspaceCreate" />

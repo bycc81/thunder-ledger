@@ -17,6 +17,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const members = ref<Member[]>([]);
   const batches = ref<Batch[]>([]);
   const audits = ref<Audit[]>([]);
+  const auditTotal = ref(0);
   const loading = ref(false);
   const error = ref('');
   const selectedWorkspace = computed(() => workspaces.value.find((w) => w.id === selectedWorkspaceId.value));
@@ -47,7 +48,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       const [memberResponse, batchResponse, auditResponse] = await Promise.all(requests);
       members.value = (memberResponse as { data: Member[] }).data;
       batches.value = (batchResponse as { data: Batch[] }).data.filter((b) => b.workspace_id === id);
-      audits.value = auditResponse ? (auditResponse as { data: Audit[] }).data : [];
+      const auditPayload = auditResponse ? (auditResponse as { data: { items?: Audit[]; total?: number } | Audit[] }).data : [];
+      audits.value = Array.isArray(auditPayload) ? auditPayload : auditPayload.items ?? [];
+      auditTotal.value = Array.isArray(auditPayload) ? auditPayload.length : auditPayload.total ?? audits.value.length;
     } catch { error.value = '工作区数据加载失败，请重试'; }
   }
   async function select(id: string) { selectedWorkspaceId.value = id; localStorage.setItem(SELECTED_WORKSPACE_STORAGE_KEY, id); await loadScoped(); }
@@ -57,6 +60,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     await select(data.id);
     return data.id;
   }
-  function clear() { workspaces.value = []; selectedWorkspaceId.value = ''; members.value = []; batches.value = []; audits.value = []; localStorage.removeItem(SELECTED_WORKSPACE_STORAGE_KEY); }
-  return { workspaces, selectedWorkspaceId, members, batches, audits, loading, error, selectedWorkspace, canManageWorkspace, canCreateBatch, canEditProducts, load, loadScoped, select, createWorkspace, clear };
+  function clear() { workspaces.value = []; selectedWorkspaceId.value = ''; members.value = []; batches.value = []; audits.value = []; auditTotal.value = 0; localStorage.removeItem(SELECTED_WORKSPACE_STORAGE_KEY); }
+  return { workspaces, selectedWorkspaceId, members, batches, audits, auditTotal, loading, error, selectedWorkspace, canManageWorkspace, canCreateBatch, canEditProducts, load, loadScoped, select, createWorkspace, clear };
 });

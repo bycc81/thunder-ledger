@@ -26,18 +26,15 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function restore() {
-    if (!localStorage.getItem('accessToken')) {
-      restoring.value = false;
-      await loadCaptcha();
-      return;
-    }
     try {
       const { data } = await api.get<{ username?: string; superAdmin?: boolean }>('/auth/session');
       if (data.username) username.value = data.username;
       isSystemAdmin.value = Boolean(data.superAdmin);
       loggedIn.value = true;
     } catch {
-      localStorage.removeItem('accessToken');
+      username.value = '';
+      loggedIn.value = false;
+      isSystemAdmin.value = false;
       await loadCaptcha();
     } finally {
       restoring.value = false;
@@ -53,13 +50,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
     loading.value = true;
     try {
-      const { data } = await api.post<{ accessToken: string }>('/auth/login', {
+      await api.post<{ authenticated: boolean }>('/auth/login', {
         username: username.value,
         password: password.value,
         captchaId: captchaId.value,
         captchaCode: captchaCode.value,
       });
-      localStorage.setItem('accessToken', data.accessToken);
       await restore();
       return true;
     } catch (e: any) {
@@ -71,8 +67,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
-    localStorage.removeItem('accessToken');
+  async function logout() {
+    try { await api.post('/auth/logout'); } catch { /* 本地状态仍需清空 */ }
     username.value = '';
     password.value = '';
     loggedIn.value = false;

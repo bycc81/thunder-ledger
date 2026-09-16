@@ -15,4 +15,5 @@
 | `settlement-adjustment-detail-page` | 调整单详情页 |
 | `settlement-adjustment-transfer-list` | 调整单转账建议 |
 | `settlement-adjustment-confirm` | 确认调整单 |
+| `settlement-adjustment-readonly` | 无调整单确认权限时的只读提示 |
 | `settlement-auto-cost-breakdown` | 结算页自动计算的成本承担只读明细 |

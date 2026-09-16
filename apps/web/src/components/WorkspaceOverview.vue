@@ -8,6 +8,7 @@ const emit = defineEmits<{
   createBatch: [];
   createWorkspace: [];
   openProducts: [];
+  openReports: [];
   navigate: [page: 'batches' | 'members' | 'audit'];
 }>();
 
@@ -36,7 +37,7 @@ const formatDate = formatDateTime;
     <div class="overview-stats" data-ai-id="workspace-stats">
       <div class="overview-stat"><small>成员</small><strong>{{ store.members.length }}</strong></div>
       <div class="overview-stat"><small>批次</small><strong>{{ store.batches.length }}</strong></div>
-      <div class="overview-stat"><small>操作记录</small><strong>{{ store.audits.length }}</strong></div>
+      <div class="overview-stat"><small>操作记录</small><strong>{{ store.auditTotal }}</strong></div>
     </div>
 
     <section class="overview-section" data-ai-id="recent-batches">
@@ -59,6 +60,7 @@ const formatDate = formatDateTime;
       <div class="overview-section-head"><h2>快捷操作</h2></div>
       <div class="overview-command-list">
         <van-button block class="command-action" data-ai-id="quick-products" @click="emit('openProducts')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="goods-collect-o" /></span>商品</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
+        <van-button block class="command-action" data-ai-id="quick-reports" @click="emit('openReports')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="chart-trending-o" /></span>报表</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
         <van-button block class="command-action" data-ai-id="quick-members" @click="emit('navigate', 'members')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="friends-o" /></span>管理成员</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
         <van-button block class="command-action" data-ai-id="quick-batches" @click="emit('navigate', 'batches')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="orders-o" /></span>查看批次</span><van-icon class="command-arrow" name="arrow" /></span></van-button>
         <van-button block class="command-action" data-ai-id="quick-audit" @click="emit('navigate', 'audit')"><span class="command-content"><span class="command-title"><span class="command-icon"><van-icon name="records" /></span>查看操作记录</span><van-icon class="command-arrow" name="arrow" /></span></van-button>

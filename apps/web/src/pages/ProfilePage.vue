@@ -25,7 +25,7 @@ const roleText = (role: WorkspaceRole) => ({ owner: '所有者', admin: '管理�
 
 function navigate(page: Page) { void router.push(page === 'overview' ? '/workspace' : `/${page}`); }
 async function logout() {
-  auth.logout();
+  await auth.logout();
   store.clear();
   await router.replace('/login');
 }
@@ -34,7 +34,7 @@ async function changePassword() {
   if (newPassword.value.trim().length < 8 || newPassword.value.trim().length > 64) { showFailToast('密码需要为 8–64 位'); return; }
   if (newPassword.value !== passwordConfirm.value) { showFailToast('两次输入的密码不一致'); return; }
   changingPassword.value = true;
-  try { const { data } = await api.post<{ accessToken: string }>('/auth/password', { currentPassword: currentPassword.value, password: newPassword.value }); localStorage.setItem('accessToken', data.accessToken); showPasswordChange.value = false; showSuccessToast('密码已修改'); }
+  try { await api.post<{ ok: boolean }>('/auth/password', { currentPassword: currentPassword.value, password: newPassword.value }); showPasswordChange.value = false; showSuccessToast('密码已修改'); }
   catch (requestError: unknown) { showFailToast((requestError as { response?: { data?: { message?: string } } }).response?.data?.message || '密码修改失败'); }
   finally { changingPassword.value = false; }
 }

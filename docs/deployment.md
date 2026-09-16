@@ -43,7 +43,9 @@ Docker Compose 前端入口默认运行在 `http://localhost:51882`；开发前�
 - Build Command：`npm ci && npm run build`
 - Start Command：`npm run db:migrate && npm run start`
 - Health Check：`/api/healthz`
-- `DATABASE_URL`、`SESSION_SECRET`、CORS 和 R2 凭据只配置在 Render Secret。
+- `DATABASE_URL`、`SESSION_SECRET`、`SESSION_COOKIE_SECURE=true`、CORS 和 R2 凭据只配置在 Render Secret。
+- `CORS_ORIGINS` 必须精确填写正式 Pages 来源；跨域 Cookie 请求会携带凭据，不能使用通配符。
+- 正式环境优先将 Web 和 API 配置为同一可注册域下的自定义域名，例如 `app.example.com` 与 `api.example.com`。如果直接使用 Pages 与 Render 默认域名，必须在目标浏览器验证第三方 Cookie 策略不会阻断登录恢复。
 
 ### Cloudflare Pages Web
 
