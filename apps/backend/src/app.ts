@@ -12,6 +12,7 @@ import { registerProductRoutes } from './products.js';
 import { registerInventoryRoutes } from './inventory.js';
 import { registerSalesExpenseRoutes } from './sales-expenses.js';
 import { registerSettlementRoutes } from './settlements.js';
+import { registerReportRoutes } from './reports.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -120,5 +121,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerInventoryRoutes(app);
   await registerSalesExpenseRoutes(app);
   await registerSettlementRoutes(app);
+  await registerReportRoutes(app);
   return app;
 }

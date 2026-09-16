@@ -47,6 +47,7 @@ import SettlementPage from './pages/SettlementPage.vue';
 import SettlementCreatePage from './pages/SettlementCreatePage.vue';
 import SettlementDetailPage from './pages/SettlementDetailPage.vue';
 import SettlementAdjustmentDetailPage from './pages/SettlementAdjustmentDetailPage.vue';
+import ReportsPage from './pages/ReportsPage.vue';
 import { useAuthStore } from './stores/auth';
 const router = createRouter({
   history: createWebHistory(),
@@ -70,6 +71,7 @@ const router = createRouter({
     { path: '/batches/:id/settlement-adjustments/:adjustmentId', component: SettlementAdjustmentDetailPage, meta: { requiresAuth: true } },
     { path: '/members', component: MembersPage, meta: { requiresAuth: true } },
     { path: '/audit', component: OperationRecordsPage, meta: { requiresAuth: true } },
+    { path: '/reports', component: ReportsPage, meta: { requiresAuth: true } },
     { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
     { path: '/accounts', component: AccountManagementPage, meta: { requiresAuth: true } },
     { path: '/products', component: ProductsPage, meta: { requiresAuth: true } },

@@ -34,6 +34,10 @@ export type SettlementAdjustmentSummary = { id: string; settlementBillId?: strin
 export type SettlementIndex = { unsettledSaleCount: number; canManage: boolean; bills: SettlementSummary[]; adjustments: SettlementAdjustmentSummary[] };
 export type SettlementDetail = SettlementPreview & { id: string; confirmedAt: string; sales: SettlementSale[]; expenses: SettlementExpense[]; adjustments: SettlementAdjustmentSummary[] };
 export type SettlementAdjustmentDetail = { id: string; settlementBillId: string; status: 'pending' | 'confirmed'; createdAt: string; confirmedAt: string | null; oldCost: string; newCost: string; members: Array<{ userId: string; username: string; oldCost: string; newCost: string; oldPaid: string; newPaid: string; netDelta: string; direction: 'receivable' | 'payable' | 'settled' }>; transfers: Array<{ payerUserId: string; payerUsername: string; payeeUserId: string; payeeUsername: string; amount: string }> };
+export type ReportType = 'inventory' | 'sales' | 'profit' | 'members' | 'unsettled';
+export type ReportSummary = { key: string; label: string; value: string };
+export type ReportResult = { reportType: ReportType; workspaceId: string; batchId: string | null; from: string | null; to: string | null; generatedAt: string; summary: ReportSummary[]; rows: Array<Record<string, string | number | boolean | null>> };
+export type AuditResponse = { items: Array<{ id: string; action: string; entity_type: string; entity_id: string | null; actor_username?: string | null; created_at: string }>; total: number; page: number; pageSize: number };
 
 export async function uploadWorkspaceImage(workspaceId: string, file: File, onPrepared?: (assetId: string) => void): Promise<ProductImage> {
   const { data } = await api.post<{ assetId: string; objectKey: string; uploadUrl: string }>(`/workspaces/${workspaceId}/assets/presign`, { fileName: file.name, contentType: file.type, sizeBytes: file.size });

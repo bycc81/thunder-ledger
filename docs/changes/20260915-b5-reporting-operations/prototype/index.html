@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>B5 报表与运维原型</title>
+  <style>
+    :root{--bg:#f5f7fb;--surface:#fff;--ink:#172033;--body:#536078;--muted:#7b879a;--line:#e4e8f0;--primary:#3657c8;--primary-soft:#eef2ff;--success:#137a4b;--success-soft:#eaf7f0;--danger:#b42318;--danger-soft:#fef3f2}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--body);font:14px/1.5 system-ui,"Microsoft YaHei",sans-serif}.app{width:min(100%,430px);min-height:100vh;margin:auto;padding:16px 16px 84px}
+    header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}h1,h2,h3,p{margin:0}h1{color:var(--ink);font-size:23px}h2{color:var(--ink);font-size:17px}h3{color:var(--ink);font-size:14px}.eyebrow{margin-bottom:4px;color:var(--muted);font-size:11px}.workspace{border:0;background:transparent;color:var(--primary);font:inherit;font-weight:700}
+    nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}nav button,.seg button,select,input,button{min-height:44px;border-radius:8px;font:inherit}nav button,.seg button{border:1px solid var(--line);background:var(--surface);color:var(--body)}nav button.active,.seg button.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary);font-weight:700}
+    .panel{margin-top:12px;padding:13px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}.filters{display:grid;gap:9px}.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.seg button{min-height:40px;padding:0 4px}.field{display:grid;gap:5px}.field label{color:var(--muted);font-size:12px}select,input{width:100%;border:1px solid #cfd6e2;padding:0 10px;background:#fff;color:var(--ink)}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.primary{border:0;background:var(--primary);color:#fff;font-weight:700}.secondary{border:1px solid var(--line);background:#fff;color:var(--primary);font-weight:700}
+    .summary{display:grid;grid-template-columns:1fr 1fr;gap:1px;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--line)}.metric{min-height:76px;padding:11px;background:#fff}.metric span,.metric strong{display:block}.metric span{color:var(--muted);font-size:12px}.metric strong{margin-top:6px;color:var(--ink);font-size:19px}.metric em{font-style:normal;color:var(--success)}
+    .note{padding:10px 11px;border-radius:7px;background:var(--primary-soft);color:#2949aa;font-size:12px}.list{overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff}.row{display:flex;min-height:68px;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.row strong,.row small{display:block}.row small{margin-top:4px;color:var(--muted);font-size:12px}.amount{white-space:nowrap;color:var(--ink);font-weight:700}.state{padding:24px 10px;text-align:center;color:var(--muted)}.hidden{display:none}.tag{display:inline-block;padding:3px 6px;border-radius:5px;background:var(--success-soft);color:var(--success);font-size:11px;font-weight:700}.danger{background:var(--danger-soft);color:var(--danger)}
+    .modal{position:fixed;inset:0;display:grid;place-items:end center;padding:16px;background:#17203366}.modal.hidden{display:none}.sheet{width:min(100%,398px);padding:18px;border-radius:12px 12px 8px 8px;background:#fff}.sheet p{margin-top:8px;color:var(--body);font-size:13px}.sheet .actions{margin-top:18px}
+    footer{position:fixed;right:0;bottom:0;left:0;display:grid;grid-template-columns:1fr 1fr;max-width:430px;margin:auto;border-top:1px solid var(--line);background:#fff}footer button{border:0;border-radius:0;background:#fff;color:var(--muted)}footer button.active{color:var(--primary);font-weight:700}
+  </style>
+</head>
+<body>
+  <main class="app" data-ai-id="b5-report-page">
+    <header data-ai-id="report-header"><div><p class="eyebrow">当前工作区</p><h1 id="title">报表</h1></div><button class="workspace" data-ai-id="workspace-picker">切换工作区</button></header>
+    <nav data-ai-id="report-module-nav"><button class="active" data-ai-id="nav-report" data-page="report">报表</button><button data-ai-id="nav-audit" data-page="audit">操作记录</button></nav>
+
+    <section id="report-view">
+      <section class="panel filters" data-ai-id="report-filter">
+        <div class="field"><label>报表类型</label><div class="seg" data-ai-id="report-type-selector"><button class="active" data-report="summary">经营概览</button><button data-report="inventory">库存</button><button data-report="sales">销售</button></div></div>
+        <div class="field"><label for="batch">批次范围</label><select id="batch" data-ai-id="report-batch-selector"><option>全部可见批次</option><option>秋季手办批次</option><option>个人库存批次</option></select></div>
+        <div class="field"><label for="date">日期范围</label><input id="date" value="2026-09-01 至 2026-09-15" data-ai-id="report-date-range"></div>
+        <div class="actions"><button class="primary" data-ai-id="report-query">查询</button><button class="secondary" data-ai-id="report-export">导出 CSV</button></div>
+      </section>
+      <section class="panel" data-ai-id="report-summary"><h2>经营概览</h2><div class="summary" style="margin-top:10px"><div class="metric" data-ai-id="report-summary-inventory"><span>可售库存</span><strong>24 件</strong></div><div class="metric" data-ai-id="report-summary-sales"><span>销售额</span><strong>¥1,280.0</strong></div><div class="metric" data-ai-id="report-summary-profit"><span>可分配利润</span><strong><em>¥356.0</em></strong></div><div class="metric" data-ai-id="report-summary-unsettled"><span>待结算</span><strong>3 笔</strong></div></div></section>
+      <section class="panel" data-ai-id="report-result-list"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:9px"><h2>明细</h2><span class="tag">更新时间 14:32</span></div><div class="list"><article class="row" data-ai-id="report-result-item-sale-001"><div><strong>复古相机</strong><small>销售 · 秋季手办批次 · 2026-09-14</small></div><span class="amount">¥680.0</span></article><article class="row" data-ai-id="report-result-item-sale-002"><div><strong>限定徽章</strong><small>销售 · 秋季手办批次 · 2026-09-12</small></div><span class="amount">¥600.0</span></article></div></section>
+      <p class="note" style="margin-top:12px">报表只读取当前账号有权访问的数据；导出会再次进行服务端权限校验并记录操作。</p>
+    </section>
+
+    <section id="audit-view" class="hidden">
+      <section class="panel filters" data-ai-id="operation-record-filter"><div class="field"><label for="action">动作</label><select id="action" data-ai-id="operation-record-action"><option>全部动作</option><option>新增销售</option><option>确认结算</option><option>导出报表</option></select></div><div class="field"><label for="actor">操作者</label><select id="actor" data-ai-id="operation-record-actor"><option>全部成员</option><option>admin</option><option>editor</option></select></div><div class="field"><label for="audit-date">时间范围</label><input id="audit-date" value="2026-09-01 至 2026-09-15" data-ai-id="operation-record-date-range"></div><div class="actions"><button class="primary" data-ai-id="operation-record-query">查询</button><button class="secondary" data-ai-id="operation-record-refresh">刷新</button></div></section>
+      <section class="panel" data-ai-id="operation-record-list"><h2>操作记录</h2><div class="list" style="margin-top:10px"><article class="row" data-ai-id="operation-record-audit-001"><div><strong>确认结算</strong><small>settlement_bill · admin</small></div><small>09-15 14:21</small></article><article class="row" data-ai-id="operation-record-audit-002"><div><strong>新增销售</strong><small>sale · editor</small></div><small>09-14 18:06</small></article><article class="row" data-ai-id="operation-record-audit-003"><div><strong>导出报表</strong><small>report · admin</small></div><small>09-14 17:42</small></article></div></section>
+      <p class="note" style="margin-top:12px">只有当前工作区所有者和管理员可以查看操作记录；密码、Token 和连接串不会展示。</p>
+    </section>
+  </main>
+  <footer><button class="active" data-ai-id="bottom-report" data-page="report">报表</button><button data-ai-id="bottom-audit" data-page="audit">操作记录</button></footer>
+  <div id="export-modal" class="modal hidden" data-ai-id="report-export-dialog"><section class="sheet"><h2>确认导出</h2><p>将导出“经营概览”中当前可见批次和日期范围的数据。导出结果会记录到操作记录。</p><div class="actions"><button class="secondary" data-ai-id="report-export-cancel">取消</button><button class="primary" data-ai-id="report-export-confirm">确认导出</button></div></section></div>
+  <script>
+    const views={report:document.getElementById('report-view'),audit:document.getElementById('audit-view')};
+    function showPage(page){Object.entries(views).forEach(([key,node])=>node.classList.toggle('hidden',key!==page));document.querySelectorAll('[data-page]').forEach(node=>node.classList.toggle('active',node.dataset.page===page));document.getElementById('title').textContent=page==='report'?'报表':'操作记录';}
+    document.querySelectorAll('[data-page]').forEach(node=>node.addEventListener('click',()=>showPage(node.dataset.page)));
+    document.querySelectorAll('[data-report]').forEach(node=>node.addEventListener('click',()=>{document.querySelectorAll('[data-report]').forEach(item=>item.classList.remove('active'));node.classList.add('active');}));
+    const modal=document.getElementById('export-modal');document.querySelector('[data-ai-id="report-export"]').addEventListener('click',()=>modal.classList.remove('hidden'));document.querySelector('[data-ai-id="report-export-cancel"]').addEventListener('click',()=>modal.classList.add('hidden'));document.querySelector('[data-ai-id="report-export-confirm"]').addEventListener('click',()=>{modal.classList.add('hidden');alert('原型：已提交导出请求');});
+  </script>
+</body>
+</html>

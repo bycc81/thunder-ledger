@@ -182,7 +182,31 @@ export async function registerAccessRoutes(app: FastifyInstance): Promise<void> 
   app.post<{ Params:{id:string}; Body:{userId?:string; role?:string} }>('/api/batches/:id/members', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canManageBatch(context))return reply.code(403).send({code:'FORBIDDEN'});if(!request.body?.userId || !['editor','viewer'].includes(request.body.role??'') || !await role(request.body.userId,context!.workspaceId))return reply.code(400).send({code:'INVALID_MEMBER'});await getPool().query('INSERT INTO batch_members(batch_id,user_id,role) VALUES($1,$2,$3) ON CONFLICT(batch_id,user_id) DO UPDATE SET role=$3',[request.params.id,request.body.userId,request.body.role]);await audit(context!.workspaceId,r.access!.id,'batch.member.add','batch_member',request.params.id,{userId:request.body.userId,role:request.body.role});return {ok:true};});
   app.patch<{ Params:{id:string; userId:string}; Body:{role?:string} }>('/api/batches/:id/members/:userId', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canManageBatch(context)||!['editor','viewer'].includes(request.body?.role??''))return reply.code(403).send({code:'FORBIDDEN'});await getPool().query('UPDATE batch_members SET role=$3 WHERE batch_id=$1 AND user_id=$2 AND role<>\'owner\'',[request.params.id,request.params.userId,request.body!.role]);await audit(context!.workspaceId,r.access!.id,'batch.member.role.update','batch_member',request.params.id,{userId:request.params.userId,role:request.body!.role});return {ok:true};});
   app.delete<{ Params:{id:string; userId:string} }>('/api/batches/:id/members/:userId', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canManageBatch(context))return reply.code(403).send({code:'FORBIDDEN'});await getPool().query('DELETE FROM batch_members WHERE batch_id=$1 AND user_id=$2 AND role<>\'owner\'',[request.params.id,request.params.userId]);await audit(context!.workspaceId,r.access!.id,'batch.member.remove','batch_member',request.params.id,{userId:request.params.userId});return {ok:true};});
-  app.get('/api/audit', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const ws=(request.query as {workspaceId?:string})?.workspaceId;if(!ws||!canManage(await accessRole(r,ws)))return reply.code(403).send({code:'FORBIDDEN'});return (await getPool().query('SELECT a.id,a.action,a.entity_type,a.entity_id,a.metadata,a.created_at,u.username AS actor_username FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_user_id WHERE a.workspace_id=$1 ORDER BY a.created_at DESC LIMIT 200',[ws])).rows;});
+  app.get<{ Querystring: { workspaceId?: string; action?: string; actorUserId?: string; from?: string; to?: string; page?: string; pageSize?: string } }>('/api/audit', async(request,reply)=>{
+    const r=request as Req;if(!(await auth(r,reply)))return;
+    const query=request.query; const ws=query.workspaceId;
+    const workspaceRole=ws?await role(r.access?.id ?? '',ws):null;
+    if(!ws||!canManage(workspaceRole))return reply.code(403).send({code:'FORBIDDEN'});
+    const page=Math.max(1,Math.min(100000,Number.parseInt(query.page??'1',10)||1));
+    const pageSize=Math.max(1,Math.min(100,Number.parseInt(query.pageSize??'50',10)||50));
+    const clauses=['a.workspace_id=$1']; const params:[string,...unknown[]]=[ws];
+    if(query.action){clauses.push(`a.action=$${params.length+1}`);params.push(query.action);}
+    if(query.actorUserId){clauses.push(`a.actor_user_id=$${params.length+1}`);params.push(query.actorUserId);}
+    const validDate = (value?: string) => {
+      if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const [year, month, day] = value.split('-').map(Number);
+      const calendarDate = new Date(Date.UTC(year, month - 1, day));
+      const date = new Date(`${value}T00:00:00+08:00`);
+      return calendarDate.getUTCFullYear() === year && calendarDate.getUTCMonth() + 1 === month && calendarDate.getUTCDate() === day && date.getTime() === calendarDate.getTime() - 8 * 60 * 60 * 1000;
+    };
+    if(query.from && !validDate(query.from) || query.to && !validDate(query.to))return reply.code(400).send({code:'INVALID_AUDIT_QUERY',message:'日期格式无效'});
+    if(query.from){clauses.push(`a.created_at >= ($${params.length+1}::date AT TIME ZONE 'Asia/Shanghai')`);params.push(query.from);}
+    if(query.to){clauses.push(`a.created_at < (($${params.length+1}::date + 1) AT TIME ZONE 'Asia/Shanghai')`);params.push(query.to);}
+    if(query.from&&query.to&&query.from>query.to)return reply.code(400).send({code:'INVALID_AUDIT_QUERY',message:'开始日期不能晚于结束日期'});
+    const where=clauses.join(' AND '); const count=await getPool().query(`SELECT COUNT(*)::int AS total FROM audit_logs a WHERE ${where}`,params);
+    const offset=(page-1)*pageSize; const rows=await getPool().query(`SELECT a.id,a.action,a.entity_type,a.entity_id,a.created_at,u.username AS actor_username FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_user_id WHERE ${where} ORDER BY a.created_at DESC LIMIT $${params.length+1} OFFSET $${params.length+2}`,[...params,pageSize,offset]);
+    return {items:rows.rows,total:count.rows[0]?.total??0,page,pageSize};
+  });
 }
 
 export { role };

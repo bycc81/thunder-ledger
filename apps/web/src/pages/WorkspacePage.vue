@@ -57,7 +57,7 @@ onBeforeUnmount(() => window.removeEventListener('auth:expired', expired));
 
 <template>
   <MobileShell page="overview" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
-    <WorkspaceOverview @create-batch="showBatchCreate = true" @open-batch="openBatch" @open-products="router.push('/products')" @navigate="navigate" />
+    <WorkspaceOverview @create-batch="showBatchCreate = true" @open-batch="openBatch" @open-products="router.push('/products')" @open-reports="router.push('/reports')" @navigate="navigate" />
   </MobileShell>
 
   <van-popup v-model:show="showWorkspace" position="bottom" round data-ai-id="workspace-picker">

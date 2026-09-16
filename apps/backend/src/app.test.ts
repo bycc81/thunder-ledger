@@ -3,6 +3,7 @@ import test from 'node:test';
 import { buildApp } from './app.js';
 import { compareInventoryTimelineEvents } from './cost-ledger.js';
 import { isSameOccurredAt, purchaseBusinessDate, purchaseCorrectionFixedFields } from './inventory.js';
+import { formatReportDateTime } from './reports.js';
 import { calculateSettlementMemberNet, settlementProfitPercentageBasisPoints } from './settlements.js';
 
 process.env.SESSION_SECRET = 'test-secret-only';
@@ -35,6 +36,11 @@ test('inventory timeline sorts timestamps by epoch, not locale date strings', ()
   const sale = { id: 'sale', kind: 'sale' as const, occurredAtMs: Date.parse('2026-09-10T02:12:00.000Z') };
   assert.ok(compareInventoryTimelineEvents(purchase, sale) < 0);
   assert.ok(compareInventoryTimelineEvents(sale, purchase) > 0);
+});
+
+test('report CSV time uses Shanghai YYYY-MM-DD HH:mm:ss format', () => {
+  assert.equal(formatReportDateTime('2026-09-15T16:00:00.000Z'), '2026-09-16 00:00:00');
+  assert.equal(formatReportDateTime('2026-09-16T01:02:03.000Z'), '2026-09-16 09:02:03');
 });
 
 test('settlement splits net profit and returns the configured cost share exactly once', () => {
