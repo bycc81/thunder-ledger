@@ -1,4 +1,4 @@
-﻿# ThunderLedger 部署说明
+# ThunderLedger 部署说明
 
 本文是 ThunderLedger 的唯一正式部署操作入口。
 
