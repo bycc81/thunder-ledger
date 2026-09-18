@@ -22,7 +22,7 @@ function money(value: number | string): string {
   const amount = Number(value);
   const sign = amount < 0 ? '-' : '';
   const absolute = Math.abs(amount);
-  return `${sign}${Math.floor(absolute / 10)}.${absolute % 10}`;
+  return `${sign}${Math.floor(absolute / 100)}.${String(absolute % 100).padStart(2, '0')}`;
 }
 
 export function formatReportDateTime(value: unknown): string {
@@ -111,14 +111,14 @@ async function report(context: ReportContext) {
   if (context.reportType === 'inventory') {
     const rows = (await pool.query(`
       WITH purchases AS (
-        SELECT ip.batch_id,ip.product_id,SUM(ip.quantity)::int AS "purchaseQuantity",SUM(ip.total_cost_tenths)::text AS "purchaseCost"
+        SELECT ip.batch_id,ip.product_id,SUM(ip.quantity)::int AS "purchaseQuantity",SUM(ip.total_cost_cents)::text AS "purchaseCost"
         FROM inventory_purchases ip WHERE ip.batch_id=ANY($1::uuid[])${purchaseDate} GROUP BY ip.batch_id,ip.product_id
       ), sales AS (
-        SELECT s.batch_id,s.product_id,SUM(s.quantity)::int AS "soldQuantity",SUM(s.consumed_cost_tenths)::text AS "soldCost"
+        SELECT s.batch_id,s.product_id,SUM(s.quantity)::int AS "soldQuantity",SUM(s.consumed_cost_cents)::text AS "soldCost"
         FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id
         WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate} GROUP BY s.batch_id,s.product_id
       ), adjustments AS (
-        SELECT ia.batch_id,ia.product_id,SUM(ia.quantity)::int AS "adjustedQuantity",SUM(ia.consumed_cost_tenths)::text AS "adjustedCost"
+        SELECT ia.batch_id,ia.product_id,SUM(ia.quantity)::int AS "adjustedQuantity",SUM(ia.consumed_cost_cents)::text AS "adjustedCost"
         FROM inventory_adjustments ia WHERE ia.batch_id=ANY($1::uuid[])${adjustmentDate} GROUP BY ia.batch_id,ia.product_id
       )
       SELECT b.id AS "batchId",b.name AS "batchName",p.id AS "productId",p.name AS "productName",purchases."purchaseQuantity",
@@ -146,8 +146,8 @@ async function report(context: ReportContext) {
 
   if (context.reportType === 'sales') {
     const rows = (await pool.query(`
-      SELECT s.id AS "saleId",b.name AS "batchName",p.name AS "productName",s.quantity,s.total_price_tenths::text AS "totalPriceTenths",
-        s.consumed_cost_tenths::text AS "consumedCostTenths",u.username AS "sellerUsername",s.occurred_at AS "occurredAt",
+      SELECT s.id AS "saleId",b.name AS "batchName",p.name AS "productName",s.quantity,s.total_price_cents::text AS "totalPriceCents",
+        s.consumed_cost_cents::text AS "consumedCostCents",s.service_fee_cents::text AS "serviceFeeCents",s.sales_channel AS "salesChannel",u.username AS "sellerUsername",s.occurred_at AS "occurredAt",
         (sbs.sale_id IS NOT NULL) AS settled
       FROM sales s JOIN products p ON p.id=s.product_id JOIN collaboration_batches b ON b.id=s.batch_id
       JOIN users u ON u.id=s.seller_user_id LEFT JOIN sale_reversals sr ON sr.sale_id=s.id
@@ -155,28 +155,28 @@ async function report(context: ReportContext) {
       WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate}
       ORDER BY s.occurred_at DESC,s.created_at DESC
     `, params)).rows as Array<Record<string, string | number | boolean>>;
-    const mapped = rows.map((row) => ({ ...row, reportRowId: String(row.saleId), totalPrice: money(String(row.totalPriceTenths)), consumedCost: money(String(row.consumedCostTenths)), grossProfit: money(Number(row.totalPriceTenths) - Number(row.consumedCostTenths)) }));
-    const salesTotal = rows.reduce((total, row) => total + Number(row.totalPriceTenths), 0);
-    const costTotal = rows.reduce((total, row) => total + Number(row.consumedCostTenths), 0);
+    const mapped = rows.map((row) => ({ ...row, reportRowId: String(row.saleId), totalPrice: money(String(row.totalPriceCents)), consumedCost: money(String(row.consumedCostCents)), serviceFee: money(String(row.serviceFeeCents)), receivedAmount: money(Number(row.totalPriceCents) - Number(row.serviceFeeCents)), grossProfit: money(Number(row.totalPriceCents) - Number(row.serviceFeeCents) - Number(row.consumedCostCents)) }));
+    const salesTotal = rows.reduce((total, row) => total + Number(row.totalPriceCents), 0);
+    const costTotal = rows.reduce((total, row) => total + Number(row.consumedCostCents), 0); const serviceFeeTotal = rows.reduce((total, row) => total + Number(row.serviceFeeCents), 0);
     const salesQuantity = rows.reduce((total, row) => total + Number(row.quantity), 0);
-    return { summary: [summary('salesTotal', '销售额', money(salesTotal)), summary('costTotal', '销售成本', money(costTotal)), summary('grossProfit', '销售利润（未扣费用）', money(salesTotal - costTotal)), summary('salesQuantity', '销售数量', salesQuantity)], rows: mapped };
+    return { summary: [summary('salesTotal', '销售额', money(salesTotal)), summary('serviceFeeTotal', '平台手续费', money(serviceFeeTotal)), summary('costTotal', '销售成本', money(costTotal)), summary('grossProfit', '销售利润（未扣其他费用）', money(salesTotal - serviceFeeTotal - costTotal)), summary('salesQuantity', '销售数量', salesQuantity)], rows: mapped };
   }
 
   if (context.reportType === 'profit') {
     const rows = (await pool.query(`
       WITH sales AS (
-        SELECT s.batch_id,SUM(s.total_price_tenths)::text AS "salesTotal",SUM(s.consumed_cost_tenths)::text AS "costTotal",
-          SUM(s.total_price_tenths) FILTER (WHERE sbs.sale_id IS NOT NULL)::text AS "settledSales",
-          SUM(s.total_price_tenths) FILTER (WHERE sbs.sale_id IS NULL)::text AS "unsettledSales"
+        SELECT s.batch_id,SUM(s.total_price_cents)::text AS "salesTotal",SUM(s.service_fee_cents)::text AS "serviceFeeTotal",SUM(s.consumed_cost_cents)::text AS "costTotal",
+          SUM(s.total_price_cents) FILTER (WHERE sbs.sale_id IS NOT NULL)::text AS "settledSales",
+          SUM(s.total_price_cents) FILTER (WHERE sbs.sale_id IS NULL)::text AS "unsettledSales"
         FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id LEFT JOIN settlement_bill_sales sbs ON sbs.sale_id=s.id
         WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate} GROUP BY s.batch_id
       ), expenses AS (
-        SELECT e.batch_id,SUM(e.amount_tenths)::text AS "expenseTotal"
+        SELECT e.batch_id,SUM(e.amount_cents)::text AS "expenseTotal"
         FROM expenses e LEFT JOIN expense_reversals er ON er.expense_id=e.id
         WHERE e.batch_id=ANY($1::uuid[]) AND er.expense_id IS NULL${expenseDate} GROUP BY e.batch_id
       )
       SELECT b.id AS "batchId",b.name AS "batchName",COALESCE(sales."salesTotal",'0') AS "salesTotal",COALESCE(expenses."expenseTotal",'0') AS "expenseTotal",
-        COALESCE(sales."costTotal",'0') AS "costTotal",COALESCE(sales."settledSales",'0') AS "settledSales",
+        COALESCE(sales."serviceFeeTotal",'0') AS "serviceFeeTotal",COALESCE(sales."costTotal",'0') AS "costTotal",COALESCE(sales."settledSales",'0') AS "settledSales",
         COALESCE(sales."unsettledSales",'0') AS "unsettledSales"
       FROM collaboration_batches b LEFT JOIN sales ON sales.batch_id=b.id LEFT JOIN expenses ON expenses.batch_id=b.id
       WHERE b.id=ANY($1::uuid[]) AND (sales.batch_id IS NOT NULL OR expenses.batch_id IS NOT NULL)
@@ -184,24 +184,24 @@ async function report(context: ReportContext) {
     `, params)).rows as Array<Record<string, string | number>>;
     const mapped = rows.map((row) => {
       const salesTotal = Number(row.salesTotal);
-      const expenseTotal = Number(row.expenseTotal);
+      const expenseTotal = Number(row.expenseTotal); const serviceFeeTotal = Number(row.serviceFeeTotal);
       const costTotal = Number(row.costTotal);
-      return { ...row, reportRowId: String(row.batchId), salesTotal: money(salesTotal), expenseTotal: money(expenseTotal), costTotal: money(costTotal), settledSales: money(String(row.settledSales)), unsettledSales: money(String(row.unsettledSales)), profitTotal: money(salesTotal - expenseTotal - costTotal) };
+      return { ...row, reportRowId: String(row.batchId), salesTotal: money(salesTotal), serviceFeeTotal: money(serviceFeeTotal), expenseTotal: money(expenseTotal), costTotal: money(costTotal), settledSales: money(String(row.settledSales)), unsettledSales: money(String(row.unsettledSales)), profitTotal: money(salesTotal - serviceFeeTotal - expenseTotal - costTotal) };
     });
-    const totals = rows.reduce<{ sales: number; expense: number; cost: number }>((total, row) => ({ sales: total.sales + Number(row.salesTotal), expense: total.expense + Number(row.expenseTotal), cost: total.cost + Number(row.costTotal) }), { sales: 0, expense: 0, cost: 0 });
-    return { summary: [summary('salesTotal', '销售额', money(totals.sales)), summary('expenseTotal', '费用', money(totals.expense)), summary('costTotal', '消耗成本', money(totals.cost)), summary('profitTotal', '利润', money(totals.sales - totals.expense - totals.cost))], rows: mapped };
+    const totals = rows.reduce<{ sales: number; fee: number; expense: number; cost: number }>((total, row) => ({ sales: total.sales + Number(row.salesTotal), fee: total.fee + Number(row.serviceFeeTotal), expense: total.expense + Number(row.expenseTotal), cost: total.cost + Number(row.costTotal) }), { sales: 0, fee: 0, expense: 0, cost: 0 });
+    return { summary: [summary('salesTotal', '销售额', money(totals.sales)), summary('serviceFeeTotal', '平台手续费', money(totals.fee)), summary('expenseTotal', '费用', money(totals.expense)), summary('costTotal', '消耗成本', money(totals.cost)), summary('profitTotal', '利润', money(totals.sales - totals.fee - totals.expense - totals.cost))], rows: mapped };
   }
 
   if (context.reportType === 'members') {
     const rows = (await pool.query(`
       WITH sales AS (
-        SELECT s.batch_id,s.seller_user_id AS user_id,SUM(s.quantity)::int AS "salesQuantity",SUM(s.total_price_tenths)::text AS "salesTotal",SUM(s.consumed_cost_tenths)::text AS "costTotal"
+        SELECT s.batch_id,s.seller_user_id AS user_id,SUM(s.quantity)::int AS "salesQuantity",SUM(s.total_price_cents)::text AS "salesTotal",SUM(s.service_fee_cents)::text AS "serviceFeeTotal",SUM(s.consumed_cost_cents)::text AS "costTotal"
         FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate} GROUP BY s.batch_id,s.seller_user_id
       ), expenses AS (
-        SELECT e.batch_id,e.payer_user_id AS user_id,SUM(e.amount_tenths)::text AS "expenseTotal"
+        SELECT e.batch_id,e.payer_user_id AS user_id,SUM(e.amount_cents)::text AS "expenseTotal"
         FROM expenses e LEFT JOIN expense_reversals er ON er.expense_id=e.id WHERE e.batch_id=ANY($1::uuid[]) AND er.expense_id IS NULL${expenseDate} GROUP BY e.batch_id,e.payer_user_id
       ), purchases AS (
-        SELECT ip.batch_id,ip.payer_user_id AS user_id,SUM(ip.total_cost_tenths)::text AS "purchaseTotal"
+        SELECT ip.batch_id,ip.payer_user_id AS user_id,SUM(ip.total_cost_cents)::text AS "purchaseTotal"
         FROM inventory_purchases ip WHERE ip.batch_id=ANY($1::uuid[])${purchaseDate} GROUP BY ip.batch_id,ip.payer_user_id
       ), members AS (
         SELECT b.id AS batch_id,bm.user_id
@@ -210,7 +210,7 @@ async function report(context: ReportContext) {
         WHERE b.id=ANY($1::uuid[])
       )
       SELECT b.id AS "batchId",b.name AS "batchName",u.id AS "userId",u.username,"salesQuantity",COALESCE(sales."salesTotal",'0') AS "salesTotal",
-        COALESCE(sales."costTotal",'0') AS "costTotal",COALESCE(expenses."expenseTotal",'0') AS "expenseTotal",
+        COALESCE(sales."serviceFeeTotal",'0') AS "serviceFeeTotal",COALESCE(sales."costTotal",'0') AS "costTotal",COALESCE(expenses."expenseTotal",'0') AS "expenseTotal",
         COALESCE(purchases."purchaseTotal",'0') AS "purchaseTotal"
       FROM members JOIN users u ON u.id=members.user_id JOIN collaboration_batches b ON b.id=members.batch_id
       LEFT JOIN sales ON sales.batch_id=members.batch_id AND sales.user_id=members.user_id
@@ -218,17 +218,17 @@ async function report(context: ReportContext) {
       LEFT JOIN purchases ON purchases.batch_id=members.batch_id AND purchases.user_id=members.user_id
       ORDER BY b.created_at DESC,u.username
     `, params)).rows as Array<Record<string, string | number>>;
-    const mapped = rows.map((row) => ({ ...row, reportRowId: `${row.batchId}-${row.userId}`, salesTotal: money(String(row.salesTotal)), costTotal: money(String(row.costTotal)), expenseTotal: money(String(row.expenseTotal)), purchaseTotal: money(String(row.purchaseTotal)), contribution: money(Number(row.salesTotal) - Number(row.costTotal) - Number(row.expenseTotal)) }));
+    const mapped = rows.map((row) => ({ ...row, reportRowId: `${row.batchId}-${row.userId}`, salesTotal: money(String(row.salesTotal)), serviceFeeTotal: money(String(row.serviceFeeTotal)), costTotal: money(String(row.costTotal)), expenseTotal: money(String(row.expenseTotal)), purchaseTotal: money(String(row.purchaseTotal)), contribution: money(Number(row.salesTotal) - Number(row.serviceFeeTotal) - Number(row.costTotal) - Number(row.expenseTotal)) }));
     return { summary: [summary('memberCount', '成员数', mapped.length), summary('salesTotal', '销售额', money(rows.reduce((total, row) => total + Number(row.salesTotal), 0))), summary('purchaseTotal', '采购支付', money(rows.reduce((total, row) => total + Number(row.purchaseTotal), 0)))], rows: mapped };
   }
 
   const rows = (await pool.query(`
     WITH sales AS (
-      SELECT s.batch_id,COUNT(*)::int AS "saleCount",SUM(s.total_price_tenths)::text AS "saleTotal",SUM(s.total_price_tenths-s.consumed_cost_tenths)::text AS "saleProfit"
+      SELECT s.batch_id,COUNT(*)::int AS "saleCount",SUM(s.total_price_cents)::text AS "saleTotal",SUM(s.total_price_cents-s.service_fee_cents-s.consumed_cost_cents)::text AS "saleProfit"
       FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id LEFT JOIN settlement_bill_sales sbs ON sbs.sale_id=s.id
       WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL AND sbs.sale_id IS NULL${saleDate} GROUP BY s.batch_id
     ), expenses AS (
-      SELECT e.batch_id,COUNT(*)::int AS "expenseCount",SUM(e.amount_tenths)::text AS "expenseTotal"
+      SELECT e.batch_id,COUNT(*)::int AS "expenseCount",SUM(e.amount_cents)::text AS "expenseTotal"
       FROM expenses e LEFT JOIN expense_reversals er ON er.expense_id=e.id LEFT JOIN settlement_bill_expenses sbe ON sbe.expense_id=e.id
       WHERE e.batch_id=ANY($1::uuid[]) AND er.expense_id IS NULL AND sbe.expense_id IS NULL${expenseDate} GROUP BY e.batch_id
     )

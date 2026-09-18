@@ -82,7 +82,7 @@ function rowEntries(row: Record<string, string | number | boolean | null>) {
     expenseCount: '未结算费用笔数', unsettledProfit: '未结算毛利',
   };
   const hiddenKeys = new Set(['batchId', 'productId', 'saleId', 'userId', 'reportRowId']);
-  return Object.entries(row).filter(([key]) => !key.endsWith('Tenths') && !hiddenKeys.has(key)).map(([key, value]) => ({
+  return Object.entries(row).filter(([key]) => !key.endsWith('Cents') && !hiddenKeys.has(key)).map(([key, value]) => ({
     key, label: labels[key] ?? key, value: key === 'occurredAt' && value ? formatDateTime(String(value)) : key === 'settled' ? (value ? '是' : '否') : String(value ?? '--'),
   }));
 }

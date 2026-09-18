@@ -35,11 +35,11 @@ function formatBusinessTime(value: string): string {
 
 /** 按发生时间重放一个商品的混合库存；不会把销售绑定到采购记录。 */
 export async function rebuildProductCostLedger(client: PoolClient, batchId: string, productId: string): Promise<{ quantity: number; cost: number; sales: Map<string, SaleCost> }> {
-  const purchasesResult = await client.query(`SELECT id,quantity,total_cost_tenths::text AS cost,payer_user_id AS "payerUserId",occurred_at AS "occurredAt" FROM inventory_purchases WHERE batch_id=$1 AND product_id=$2`, [batchId, productId]);
+  const purchasesResult = await client.query(`SELECT id,quantity,total_cost_cents::text AS cost,payer_user_id AS "payerUserId",occurred_at AS "occurredAt" FROM inventory_purchases WHERE batch_id=$1 AND product_id=$2`, [batchId, productId]);
   const salesResult = await client.query(`SELECT s.id,s.quantity,s.occurred_at AS "occurredAt" FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id WHERE s.batch_id=$1 AND s.product_id=$2 AND sr.sale_id IS NULL`, [batchId, productId]);
   const adjustmentsResult = await client.query('SELECT id,quantity,created_at AS "occurredAt" FROM inventory_adjustments WHERE batch_id=$1 AND product_id=$2', [batchId, productId]);
   const purchaseIds = purchasesResult.rows.map((row) => row.id as string);
-  const sharesResult = purchaseIds.length ? await client.query('SELECT purchase_id AS "purchaseId",user_id AS "userId",amount_tenths::text AS amount FROM purchase_cost_shares WHERE purchase_id=ANY($1::uuid[])', [purchaseIds]) : { rows: [] as Array<{ purchaseId: string; userId: string; amount: string }> };
+  const sharesResult = purchaseIds.length ? await client.query('SELECT purchase_id AS "purchaseId",user_id AS "userId",amount_cents::text AS amount FROM purchase_cost_shares WHERE purchase_id=ANY($1::uuid[])', [purchaseIds]) : { rows: [] as Array<{ purchaseId: string; userId: string; amount: string }> };
   const shares = new Map<string, Array<{ userId: string; amount: number }>>(); for (const row of sharesResult.rows) shares.set(row.purchaseId, [...(shares.get(row.purchaseId) ?? []), { userId: row.userId, amount: Number(row.amount) }]);
   const events: Event[] = [
     ...purchasesResult.rows.map((row) => ({ id: row.id as string, kind: 'purchase' as const, ...eventTime(row.occurredAt), quantity: Number(row.quantity), cost: Number(row.cost), payerUserId: String(row.payerUserId), shares: shares.get(row.id as string) ?? [] })),
@@ -53,18 +53,18 @@ export async function rebuildProductCostLedger(client: PoolClient, batchId: stri
     const cost = event.quantity === quantity ? totalCost : Math.floor(totalCost * event.quantity / quantity); const payerOut = split(cost, payer); const burdenOut = split(cost, burden);
     quantity -= event.quantity; totalCost -= cost; subtract(payer, payerOut); subtract(burden, burdenOut);
     if (event.kind === 'sale') sales.set(event.id, { cost, payer: payerOut, burden: burdenOut });
-    else await client.query('UPDATE inventory_adjustments SET consumed_cost_tenths=$2 WHERE id=$1', [event.id, cost]);
+    else await client.query('UPDATE inventory_adjustments SET consumed_cost_cents=$2 WHERE id=$1', [event.id, cost]);
   }
   for (const [saleId, value] of sales) {
-    await client.query('UPDATE sales SET consumed_cost_tenths=$2 WHERE id=$1', [saleId, value.cost]);
+    await client.query('UPDATE sales SET consumed_cost_cents=$2 WHERE id=$1', [saleId, value.cost]);
     await client.query('DELETE FROM sale_cost_allocations WHERE sale_id=$1', [saleId]);
-    for (const [userId, amount] of value.payer) await client.query("INSERT INTO sale_cost_allocations(sale_id,allocation_type,user_id,amount_tenths) VALUES($1,'payer',$2,$3)", [saleId, userId, amount]);
-    for (const [userId, amount] of value.burden) await client.query("INSERT INTO sale_cost_allocations(sale_id,allocation_type,user_id,amount_tenths) VALUES($1,'burden',$2,$3)", [saleId, userId, amount]);
+    for (const [userId, amount] of value.payer) await client.query("INSERT INTO sale_cost_allocations(sale_id,allocation_type,user_id,amount_cents) VALUES($1,'payer',$2,$3)", [saleId, userId, amount]);
+    for (const [userId, amount] of value.burden) await client.query("INSERT INTO sale_cost_allocations(sale_id,allocation_type,user_id,amount_cents) VALUES($1,'burden',$2,$3)", [saleId, userId, amount]);
   }
   return { quantity, cost: totalCost, sales };
 }
 
 export async function saleAllocations(client: PoolClient, saleIds: string[], type: 'payer' | 'burden'): Promise<Map<string, number>> {
-  const rows = saleIds.length ? await client.query('SELECT user_id AS "userId",SUM(amount_tenths)::text AS amount FROM sale_cost_allocations WHERE sale_id=ANY($1::uuid[]) AND allocation_type=$2 GROUP BY user_id', [saleIds, type]) : { rows: [] as Array<{ userId: string; amount: string }> };
+  const rows = saleIds.length ? await client.query('SELECT user_id AS "userId",SUM(amount_cents)::text AS amount FROM sale_cost_allocations WHERE sale_id=ANY($1::uuid[]) AND allocation_type=$2 GROUP BY user_id', [saleIds, type]) : { rows: [] as Array<{ userId: string; amount: string }> };
   return new Map(rows.rows.map((row) => [row.userId, Number(row.amount)]));
 }
