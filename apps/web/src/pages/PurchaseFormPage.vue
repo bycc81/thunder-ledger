@@ -33,7 +33,7 @@ const hasSales = ref(false);
 const hasInventoryAdjustments = ref(false);
 const corrections = ref<Array<{ id: string; reason: string; createdAt: string; createdByUsername: string }>>([]);
 const selectedShares = computed(() => new Set(shares.value.map((share) => share.userId)));
-const totalValid = computed(() => /^\d+(\.\d)?$/.test(totalCost.value) && Math.round(shares.value.reduce((sum, share) => sum + (Number(share.amount) || 0), 0) * 10) === Math.round(Number(totalCost.value) * 10));
+const totalValid = computed(() => /^\d+(\.\d{1,2})?$/.test(totalCost.value) && Math.round(shares.value.reduce((sum, share) => sum + (Number(share.amount) || 0), 0) * 100) === Math.round(Number(totalCost.value) * 100));
 const blockedByAdjustment = computed(() => hasInventoryAdjustments.value);
 
 function back() { void router.push(`/batches/${batchId}/inventory`); }

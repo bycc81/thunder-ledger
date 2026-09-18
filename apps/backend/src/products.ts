@@ -29,7 +29,7 @@ function parseInput(input: ProductInput, requireName: boolean): { value?: { name
   }
   if (input.referencePrice !== undefined) {
     if (input.referencePrice === null || input.referencePrice === '') value.referencePrice = null;
-    else if (typeof input.referencePrice !== 'string' || !/^\d+(\.\d)?$/.test(input.referencePrice)) return { message: '参考价必须为非负金额，最多一位小数' };
+    else if (typeof input.referencePrice !== 'string' || !/^\d+(\.\d{1,2})?$/.test(input.referencePrice)) return { message: '参考价必须为非负金额，最多两位小数' };
     else value.referencePrice = input.referencePrice;
   }
   if (input.assetIds !== undefined) {

@@ -7,6 +7,7 @@ import { compareInventoryTimelineEvents } from './cost-ledger.js';
 import { isSameOccurredAt, purchaseBusinessDate, purchaseCorrectionFixedFields } from './inventory.js';
 import { formatReportDateTime } from './reports.js';
 import { calculateSettlementMemberNet, settlementProfitPercentageBasisPoints } from './settlements.js';
+import { asCents, calculateServiceFeeCents } from './sales-expenses.js';
 
 process.env.SESSION_SECRET = 'test-secret-only';
 process.env.DATABASE_URL = 'postgres://test:test@localhost:5432/test';
@@ -87,6 +88,13 @@ test('settlement accepts profit percentages with up to two decimal places', () =
   assert.equal(settlementProfitPercentageBasisPoints(66.67), 6667);
   assert.equal(settlementProfitPercentageBasisPoints(33.333), null);
   assert.equal(settlementProfitPercentageBasisPoints(-1), null);
+});
+
+test('sales fees use cents and round the percentage result to the nearest cent', () => {
+  assert.equal(asCents('99.99'), 9999);
+  assert.equal(asCents('1.234'), null);
+  assert.equal(calculateServiceFeeCents(9999, 160), 160);
+  assert.equal(calculateServiceFeeCents(10000, 160), 160);
 });
 
 test('health endpoint is available', async () => {

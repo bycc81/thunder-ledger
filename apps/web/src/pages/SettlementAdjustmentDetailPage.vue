@@ -12,7 +12,7 @@ const loading = ref(true)
 const confirming = ref(false)
 const error = ref('')
 function amountChange(oldValue: string, newValue: string): string {
-  const change = Math.round((Number(newValue) - Number(oldValue)) * 10) / 10
+  const change = Math.round((Number(newValue) - Number(oldValue)) * 100) / 100
   if (change > 0) return `+${change.toFixed(1)}`
   if (change < 0) return change.toFixed(1)
   return '0.0'

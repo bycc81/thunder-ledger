@@ -31,6 +31,9 @@ onMounted(load)
     <main v-else-if="detail" class="content">
       <p class="muted">已确认 · {{ formatDateTime(detail.confirmedAt) }}</p>
       <div class="summary">
+        <div data-ai-id="settlement-service-fee-total">
+          <small>平台手续费</small><strong>¥{{ detail.serviceFeeTotal }}</strong>
+        </div>
         <div>
           <small>销售额</small><strong>¥{{ detail.saleTotal }}</strong>
         </div>

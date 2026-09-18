@@ -23,7 +23,7 @@ function backTarget() { return editing.value ? `/products/${route.params.id}` : 
 function requestClose() { if (dirty.value) showDiscard.value = true; else void router.push(backTarget()); }
 function validate() {
   nameError.value = name.value.trim() ? '' : '请填写商品名称';
-  priceError.value = !referencePrice.value.trim() || /^\d+(\.\d)?$/.test(referencePrice.value.trim()) ? '' : '请输入非负金额，最多保留一位小数';
+  priceError.value = !referencePrice.value.trim() || /^\d+(\.\d{1,2})?$/.test(referencePrice.value.trim()) ? '' : '请输入非负金额，最多保留两位小数';
   return !nameError.value && !priceError.value;
 }
 async function load() {
