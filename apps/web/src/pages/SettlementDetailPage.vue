@@ -38,7 +38,7 @@ onMounted(load)
           <small>销售额</small><strong>¥{{ detail.saleTotal }}</strong>
         </div>
         <div>
-          <small>费用</small><strong>¥{{ detail.expenseTotal }}</strong>
+          <small>其他费用</small><strong>¥{{ detail.expenseTotal }}</strong>
         </div>
         <div>
           <small>商品成本</small><strong>¥{{ detail.costTotal }}</strong>

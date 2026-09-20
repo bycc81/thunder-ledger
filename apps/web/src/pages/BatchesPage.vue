@@ -62,7 +62,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
   <MobileShell page="batches" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
     <section class="batches-page" data-ai-id="batches-page">
       <header class="page-heading" data-ai-id="batch-list-header">
-        <div><span class="eyebrow">当前工作区</span><h1>批次</h1></div>
+        <div><h1>批次</h1></div>
         <van-button v-if="store.canCreateBatch" type="primary" data-ai-id="batch-create" @click="showCreate = true">新建批次</van-button>
       </header>
       <div class="filters" data-ai-id="batch-filters">
@@ -95,7 +95,6 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
 .batches-page { padding-bottom: 8px; }
 .page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:18px; }
 .page-heading h1 { margin:0; font-size:24px; }
-.eyebrow { display:block; margin-bottom:4px; color:#8993a7; font-size:11px; }
 .page-heading :deep(.van-button) { min-height:38px; padding:0 11px; font-size:14px; }
 .filters { display:flex; align-items:center; gap:8px; margin:0 -4px 14px; }
 .filters :deep(.van-search) { flex:1; padding:0; }

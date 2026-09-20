@@ -66,6 +66,7 @@
 | ID | 类型 | 所在区域 | 用途 |
 |---|---|---|---|
 | `workspace-members-page` | 页面根 | 成员 | 页面定位 |
+| `member-workspace-back` | 控件 | 成员标题 | 返回工作区主页 |
 | `member-list` | 区域 | 成员 | 成员列表 |
 | `member-item-{userId}` | 列表项 | 成员 | 成员定位 |
 | `member-invite` | 控件 | 成员标题 | 打开邀请弹窗 |

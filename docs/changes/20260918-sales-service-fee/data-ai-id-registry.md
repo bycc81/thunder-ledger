@@ -3,6 +3,11 @@
 | ID | 节点 | 说明 |
 | --- | --- | --- |
 | `sale-channel` | 输入框 | 可选销售渠道 |
+| `sale-product-select` | 选择入口 | 当前销售商品 |
+| `sale-product-picker` | 底部弹层 | 销售商品选择器 |
+| `sale-seller-select` | 选择入口 | 销售卖出人 |
+| `sale-seller-picker` | 底部弹层 | 销售卖出人选择器 |
+| `sale-seller-settlement-notice` | 提示文本 | 卖出人实收款在结算中的归属说明 |
 | `sale-fee-section` | 区域 | 手续费表单区 |
 | `sale-fee-mode` | 单选组 | 手续费方式 |
 | `sale-fee-mode-percentage` | 单选项 | 按比例 |

@@ -17,6 +17,7 @@
 | `settlement-profit-allocation` | 区域 | 本次利润比例填写区 |
 | `settlement-profit-share-{memberId}` | 输入框 | 指定成员的本次利润比例，最多两位小数 |
 | `settlement-preview` | 区域 | 利润、应收应付和转账建议预览 |
+| `settlement-preview-net-receipts` | 汇总字段 | 销售额扣除平台手续费后的净收款 |
 | `settlement-preview-transfers` | 列表 | 预览阶段的付款人、收款人和金额 |
 | `settlement-transfer-{payerUserId}-{payeeUserId}` | 列表项 | 指定付款人到收款人的转账建议 |
 | `settlement-confirm` | 控件 | 发起账单确认 |

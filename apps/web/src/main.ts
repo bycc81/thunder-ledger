@@ -42,6 +42,7 @@ import InventoryPage from './pages/InventoryPage.vue';
 import PurchaseFormPage from './pages/PurchaseFormPage.vue';
 import TransactionsPage from './pages/TransactionsPage.vue';
 import TransactionFormPage from './pages/TransactionFormPage.vue';
+import SaleDetailPage from './pages/SaleDetailPage.vue';
 import AccountManagementPage from './pages/AccountManagementPage.vue';
 import SettlementPage from './pages/SettlementPage.vue';
 import SettlementCreatePage from './pages/SettlementCreatePage.vue';
@@ -64,6 +65,7 @@ const router = createRouter({
     { path: '/batches/:id/inventory/:productId', component: InventoryPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/transactions', component: TransactionsPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/transactions/sales/new', component: TransactionFormPage, meta: { requiresAuth: true } },
+    { path: '/batches/:id/transactions/sales/:saleId', component: SaleDetailPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/transactions/expenses/new', component: TransactionFormPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/settlements', component: SettlementPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/settlements/new', component: SettlementCreatePage, meta: { requiresAuth: true } },

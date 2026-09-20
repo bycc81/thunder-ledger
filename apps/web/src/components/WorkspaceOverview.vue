@@ -100,5 +100,5 @@ const formatDate = formatDateTime;
 .command-icon { display:grid; place-items:center; width:32px; height:32px; border-radius:8px; background:#edf1ff; color:#3657c8; }
 .command-icon :deep(.van-icon) { color:inherit; font-size:18px; }
 .overview-section-head :deep(.text-button) { min-height:38px; padding:0 4px; border:0; background:transparent; box-shadow:none; font-size:13px; }
-.workspace-overview :deep(.van-empty) { padding:24px 16px; border-radius:10px; background:#fff; }
+.workspace-overview :deep(.van-empty) { padding:16px 12px; border-radius:10px; background:#fff; }
 </style>

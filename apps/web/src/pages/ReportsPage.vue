@@ -76,10 +76,10 @@ function rowEntries(row: Record<string, string | number | boolean | null>) {
     grossProfit: '销售利润（未扣费用）', sellerUsername: '卖出人', occurredAt: '发生时间', settled: '已结算',
     purchaseQuantity: '采购数量', soldQuantity: '销售数量', adjustedQuantity: '减少库存', availableQuantity: '可卖数量',
     purchaseCost: '采购成本', soldCost: '销售成本', adjustedCost: '减少成本', remainingCost: '剩余成本',
-    salesTotal: '销售额', expenseTotal: '费用', costTotal: '销售成本', profitTotal: '利润',
+    salesTotal: '销售额', expenseTotal: '其他费用', costTotal: '销售成本', profitTotal: '利润',
     settledSales: '已结算销售额', unsettledSales: '待结算销售额', username: '成员', salesQuantity: '销售数量',
     contribution: '贡献额', purchaseTotal: '采购支付', saleCount: '未结算销售笔数', saleTotal: '未结算销售额',
-    expenseCount: '未结算费用笔数', unsettledProfit: '未结算毛利',
+    expenseCount: '未结算其他费用笔数', unsettledProfit: '未结算毛利',
   };
   const hiddenKeys = new Set(['batchId', 'productId', 'saleId', 'userId', 'reportRowId']);
   return Object.entries(row).filter(([key]) => !key.endsWith('Cents') && !hiddenKeys.has(key)).map(([key, value]) => ({
@@ -100,7 +100,7 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); });
 <template>
   <MobileShell page="overview" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
     <section class="reports-page" data-ai-id="b5-report-page">
-      <header class="page-heading"><div><span class="eyebrow">当前工作区</span><h1>报表</h1></div></header>
+      <header class="page-heading"><div><button class="workspace-back-link" type="button" aria-label="返回工作区" data-ai-id="report-workspace-back" @click="router.push('/workspace')"><van-icon name="arrow-left" aria-hidden="true" /><span>工作区</span></button><h1>报表</h1></div></header>
       <section class="filter-panel" data-ai-id="report-filter">
         <van-dropdown-menu>
           <van-dropdown-item v-model="reportType" :options="reportOptions" data-ai-id="report-type-selector" />
@@ -152,9 +152,8 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); });
 
 <style scoped>
 .reports-page { padding-bottom:8px; }
-.page-heading { margin-bottom:14px; }
+.page-heading { margin-bottom:14px; }.workspace-back-link { display:inline-flex; min-height:44px; align-items:center; gap:3px; margin:-8px 0 0 -8px; padding:0 8px; border:0; background:transparent; color:#3657c8; font:inherit; font-size:13px; }.workspace-back-link:focus-visible { outline:2px solid #3657c8; outline-offset:1px; }
 .page-heading h1 { margin:0; font-size:24px; }
-.eyebrow { display:block; margin-bottom:4px; color:#8993a7; font-size:11px; }
 .filter-panel { display:grid; gap:10px; margin-bottom:16px; }
 .filter-panel :deep(.van-dropdown-menu__bar) { height:44px; border:1px solid #d8dde8; border-radius:10px; box-shadow:none; }
 .filter-panel :deep(.van-dropdown-menu) { overflow:hidden; border-radius:10px; }
