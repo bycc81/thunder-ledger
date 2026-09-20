@@ -109,7 +109,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
 <template>
   <MobileShell page="overview" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
     <section class="members-page" data-ai-id="workspace-members-page">
-      <header class="page-heading" data-ai-id="member-list-header"><div><span class="eyebrow">工作区管理</span><h1>成员</h1></div><div v-if="store.canManageWorkspace" data-ai-id="member-add"><van-button type="primary" data-ai-id="member-invite" @click="openInvite">添加成员</van-button></div></header>
+      <header class="page-heading" data-ai-id="member-list-header"><div><button class="workspace-back-link" type="button" aria-label="返回工作区" data-ai-id="member-workspace-back" @click="router.push('/workspace')"><van-icon name="arrow-left" aria-hidden="true" /><span>工作区</span></button><h1>成员</h1></div><div v-if="store.canManageWorkspace" data-ai-id="member-add"><van-button type="primary" data-ai-id="member-invite" @click="openInvite">添加成员</van-button></div></header>
       <p class="permission-notice" data-ai-id="member-permission-notice">{{ permissionText }}</p>
       <van-empty v-if="!store.members.length" description="暂无成员" data-ai-id="member-empty" />
       <div v-else class="member-list" data-ai-id="member-list">
@@ -138,8 +138,8 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
 <style scoped>
 .members-page { padding-bottom:8px; }
 .page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.workspace-back-link { display:inline-flex; min-height:44px; align-items:center; gap:3px; margin:-8px 0 0 -8px; padding:0 8px; border:0; background:transparent; color:#3657c8; font:inherit; font-size:13px; }.workspace-back-link:focus-visible { outline:2px solid #3657c8; outline-offset:1px; }
 .page-heading h1 { margin:0; font-size:24px; }
-.eyebrow { display:block; margin-bottom:4px; color:#8993a7; font-size:11px; }
 .page-heading :deep(.van-button) { min-height:38px; padding:0 10px; font-size:13px; }
 .permission-notice { margin:0 0 14px; padding:10px 12px; border-radius:8px; background:#edf1ff; color:#536078; font-size:12px; line-height:1.5; }
 .member-list { display:grid; gap:8px; }

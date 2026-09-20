@@ -3,6 +3,7 @@
 | `data-ai-id` | 类型 | 用途 |
 |---|---|---|
 | `b5-report-page` | 页面根节点 | 报表工作台页面 |
+| `report-workspace-back` | 控件 | 从报表返回工作区主页 |
 | `report-filter` | 区域 | 报表筛选区域 |
 | `report-type-selector` | 控件 | 切换报表类型 |
 | `report-batch-selector` | 控件 | 选择批次范围 |
@@ -21,6 +22,7 @@
 | `report-export-confirm` | 控件 | 确认导出 |
 | `report-export-cancel` | 控件 | 取消导出 |
 | `operation-record-page` | 页面根节点 | 操作记录页面，保留既有 ID |
+| `operation-record-workspace-back` | 控件 | 从操作记录返回工作区主页 |
 | `operation-record-filter` | 区域 | 审计筛选区域 |
 | `operation-record-action` | 控件 | 按动作筛选 |
 | `operation-record-actor` | 控件 | 按操作者筛选 |

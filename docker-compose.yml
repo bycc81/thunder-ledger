@@ -26,6 +26,8 @@ services:
   api:
     build: ./apps/backend
     restart: unless-stopped
+    ports:
+      - "${API_PORT:-3000}:${API_PORT:-3000}"
     environment:
       DATABASE_URL: ${DATABASE_URL_DOCKER}
       API_PORT: ${API_PORT}

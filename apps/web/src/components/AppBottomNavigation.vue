@@ -14,11 +14,15 @@ const active = computed(() => {
 function navigate(value: string) {
   void router.push({ workspace: '/workspace', batches: '/batches', audit: '/audit', profile: '/profile' }[value] ?? '/workspace');
 }
+
+function returnToWorkspaceIfActive() {
+  if (active.value === 'workspace') navigate('workspace');
+}
 </script>
 
 <template>
   <van-tabbar :model-value="active" fixed data-ai-id="bottom-navigation" @change="navigate">
-    <van-tabbar-item name="workspace" icon="home-o" data-ai-id="nav-workspace">工作区</van-tabbar-item>
+    <van-tabbar-item name="workspace" icon="home-o" data-ai-id="nav-workspace" @click="returnToWorkspaceIfActive">工作区</van-tabbar-item>
     <van-tabbar-item name="batches" icon="orders-o" data-ai-id="nav-batches">批次</van-tabbar-item>
     <van-tabbar-item name="audit" icon="notes-o" data-ai-id="nav-audit">操作记录</van-tabbar-item>
     <van-tabbar-item name="profile" icon="contact" data-ai-id="nav-profile">我的</van-tabbar-item>

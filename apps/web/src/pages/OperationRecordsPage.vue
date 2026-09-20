@@ -81,7 +81,7 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); if (ca
 <template>
   <MobileShell page="overview" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
     <section class="records-page" data-ai-id="operation-record-page">
-      <header class="page-heading" data-ai-id="operation-record-header"><div><span class="eyebrow">当前工作区</span><h1>操作记录</h1></div><van-button v-if="canView" class="refresh-button" plain icon="replay" :loading="refreshing" data-ai-id="operation-record-refresh" @click="refresh">刷新</van-button></header>
+      <header class="page-heading" data-ai-id="operation-record-header"><div><button class="workspace-back-link" type="button" aria-label="返回工作区" data-ai-id="operation-record-workspace-back" @click="router.push('/workspace')"><van-icon name="arrow-left" aria-hidden="true" /><span>工作区</span></button><h1>操作记录</h1></div><van-button v-if="canView" class="refresh-button" plain icon="replay" :loading="refreshing" data-ai-id="operation-record-refresh" @click="refresh">刷新</van-button></header>
       <p v-if="!canView" class="permission-notice" data-ai-id="operation-record-permission">当前角色：{{ roleText(store.selectedWorkspace?.role ?? 'viewer') }}，无权查看操作记录。</p>
       <section v-else class="record-filter" data-ai-id="operation-record-filter">
         <van-dropdown-menu>
@@ -111,9 +111,8 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); if (ca
 
 <style scoped>
 .records-page { width:100%; max-width:100%; min-width:0; overflow-x:hidden; padding-bottom:8px; }
-.page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:14px; }.workspace-back-link { display:inline-flex; min-height:44px; align-items:center; gap:3px; margin:-8px 0 0 -8px; padding:0 8px; border:0; background:transparent; color:#3657c8; font:inherit; font-size:13px; }.workspace-back-link:focus-visible { outline:2px solid #3657c8; outline-offset:1px; }
 .page-heading h1 { margin:0; font-size:24px; }
-.eyebrow { display:block; margin-bottom:4px; color:#8993a7; font-size:11px; }
 .refresh-button { min-height:38px; padding:0 10px; color:#3657c8; font-size:13px; }
 .permission-notice { margin:0 0 14px; padding:10px 12px; border-radius:8px; background:#f1f3f6; color:#68717d; font-size:12px; line-height:1.5; }
 .record-list { display:grid; width:100%; max-width:100%; min-width:0; gap:8px; }

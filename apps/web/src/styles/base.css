@@ -12,3 +12,9 @@
 html, body, #app { min-height: 100%; max-width:100%; margin: 0; overflow-x:hidden; }
 body { min-width: 320px; background: #e9edf5; }
 button, input { font: inherit; }
+
+/* 移动端空状态用于提示而非占满内容区，统一采用紧凑规格。 */
+.van-empty { padding: 16px 12px; }
+.van-empty__image { width: 72px; height: 72px; }
+.van-empty__description { margin-top: 8px; font-size: 13px; }
+.van-empty__bottom { margin-top: 10px; }

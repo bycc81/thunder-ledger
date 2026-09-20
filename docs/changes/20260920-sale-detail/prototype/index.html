@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>销售详情原型</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #eef2f8; color: #172033; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .phone { width: min(100%, 430px); min-height: 100vh; margin: auto; padding-bottom: 28px; background: #f5f7fb; }
+    .topbar { display: flex; height: 56px; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #e4e8f0; background: #fff; }
+    .topbar strong { font-size: 16px; }
+    .back { display: inline-flex; min-height: 44px; align-items: center; gap: 4px; margin-left: -8px; padding: 0 8px; border: 0; background: transparent; color: #3657c8; font: inherit; }
+    .content { padding: 20px 16px; }
+    .summary { padding: 16px; border-radius: 12px; background: #fff; box-shadow: 0 1px 0 #e4e8f0; }
+    .summary-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    h1, h2, p { margin: 0; }
+    h1 { margin-top: 6px; font-size: 22px; }
+    h2 { margin: 25px 0 9px; font-size: 16px; }
+    .price { color: #172033; font-size: 22px; font-weight: 800; white-space: nowrap; }
+    .tag { display: inline-flex; min-height: 23px; align-items: center; padding: 1px 7px; border-radius: 4px; background: #fff6dc; color: #a66200; font-size: 12px; }
+    .sub { margin-top: 4px; color: #71809a; font-size: 12px; }
+    .list { overflow: hidden; border-radius: 10px; background: #fff; box-shadow: 0 1px 0 #e4e8f0; }
+    .row { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #edf0f5; }
+    .row:last-child { border-bottom: 0; }
+    .row span { color: #62708a; }
+    .row b { text-align: right; white-space: nowrap; }
+    .row .negative { color: #b42318; }
+    .row .positive { color: #168246; }
+    .expense { display: flex; min-height: 60px; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px; border: 0; border-bottom: 1px solid #edf0f5; background: #fff; color: inherit; text-align: left; font: inherit; width: 100%; }
+    .expense strong, .expense small { display: block; }
+    .expense small { margin-top: 3px; color: #71809a; font-size: 12px; }
+    .arrow { color: #8b96aa; font-size: 20px; }
+    .note { padding: 12px; border-radius: 10px; background: #fff; color: #536078; white-space: pre-wrap; box-shadow: 0 1px 0 #e4e8f0; }
+    .bill { display: flex; width: 100%; min-height: 58px; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 0; border-radius: 10px; background: #edf1ff; color: #2949aa; text-align: left; font: inherit; }
+    .bill small { display: block; margin-top: 2px; color: #536bb4; }
+    .hint { margin: 22px 0 0; color: #71809a; font-size: 12px; text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="phone" data-ai-id="sale-detail-page">
+    <header class="topbar" data-ai-id="sale-detail-topbar">
+      <button class="back" type="button" data-ai-id="sale-detail-back" onclick="history.back()">‹ 返回交易</button>
+      <strong>销售详情</strong>
+      <span aria-hidden="true"></span>
+    </header>
+    <div class="content">
+      <section class="summary" data-ai-id="sale-detail-summary">
+        <div class="summary-head">
+          <div>
+            <span class="tag" data-ai-id="sale-detail-status">待结账</span>
+            <h1>张元英小卡 · 1 件</h1>
+            <p class="sub">2026-09-20 16:28 成交</p>
+          </div>
+          <div class="price">¥300.00</div>
+        </div>
+      </section>
+
+      <h2>收款</h2>
+      <section class="list" data-ai-id="sale-detail-payment">
+        <div class="row"><span>成交总价</span><b>¥300.00</b></div>
+        <div class="row"><span>平台手续费（按比例 1.60%）</span><b class="negative">-¥4.80</b></div>
+        <div class="row"><span>实际收款</span><b class="positive">¥295.20</b></div>
+        <div class="row"><span>卖出人</span><b>chaewon</b></div>
+        <div class="row"><span>销售渠道</span><b>闲鱼</b></div>
+        <div class="row"><span>成交时间</span><b>2026-09-20 16:28</b></div>
+      </section>
+
+      <h2>成本</h2>
+      <section class="list" data-ai-id="sale-detail-cost">
+        <div class="row"><span>销售成本</span><b>¥120.00</b></div>
+        <div class="row"><span>销售毛利（未扣其他费用）</span><b class="positive">¥175.20</b></div>
+      </section>
+
+      <h2>关联其他费用</h2>
+      <section class="list" data-ai-id="sale-detail-expenses">
+        <button class="expense" type="button" data-ai-id="sale-detail-expense-example" onclick="alert('原型：后续费用详情页不在本次范围内')">
+          <span><strong>邮费 · ¥8.00</strong><small>dandan 支付 · 2026-09-20 16:31</small></span><span class="arrow">›</span>
+        </button>
+      </section>
+
+      <h2>备注</h2>
+      <p class="note" data-ai-id="sale-detail-note">买家已确认收货。</p>
+
+      <h2>结算</h2>
+      <button class="bill" type="button" data-ai-id="sale-detail-settlement-open" onclick="alert('原型：已结账时显示并跳转到对应账单详情；待结账时本区仅显示状态。')">
+        <span><strong>待结账</strong><small>尚未纳入阶段账单</small></span><span class="arrow">›</span>
+      </button>
+      <p class="hint">原型仅展示结构与交互，不连接真实数据。</p>
+    </div>
+  </main>
+</body>
+</html>
