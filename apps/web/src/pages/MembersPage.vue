@@ -7,6 +7,7 @@ import MobileShell from '../layouts/MobileShell.vue';
 import { useAuthStore } from '../stores/auth';
 import { useWorkspaceStore, type Member, type WorkspaceRole } from '../stores/workspace';
 import DangerConfirmDialog from '../components/DangerConfirmDialog.vue';
+import WorkspacePicker from '../components/WorkspacePicker.vue';
 import { formatDateTime } from '../utils/dateTime';
 
 type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
@@ -14,6 +15,7 @@ const router = useRouter();
 const auth = useAuthStore();
 const store = useWorkspaceStore();
 const showWorkspace = ref(false);
+const showWorkspaceCreate = ref(false);
 const showInvite = ref(false);
 const addMode = ref<'invite' | 'existing'>('invite');
 const showInviteRole = ref(false);
@@ -35,7 +37,6 @@ const formatDate = formatDateTime;
 const permissionText = computed(() => store.canManageWorkspace ? `当前角色：${roleText(store.selectedWorkspace?.role ?? 'viewer')}，可管理成员和角色。` : `当前角色：${roleText(store.selectedWorkspace?.role ?? 'viewer')}，成员管理为只读。`);
 
 function navigate(page: Page) { void router.push(page === 'overview' ? '/workspace' : `/${page}`); }
-async function selectWorkspace(id: string) { showWorkspace.value = false; await store.select(id); }
 function openRole(member: Member) { selectedMember.value = member; selectedRole.value = member.role === 'owner' ? 'viewer' : member.role; showMemberRole.value = true; }
 function chooseInviteRole({ selectedOptions }: { selectedOptions: Array<{ value?: string }> }) { const value = selectedOptions[0]?.value; if (value && value !== 'owner') inviteRole.value = value as Exclude<WorkspaceRole, 'owner'>; showInviteRole.value = false; }
 function chooseMemberRole({ selectedOptions }: { selectedOptions: Array<{ value?: string }> }) { const value = selectedOptions[0]?.value; if (value && value !== 'owner') selectedRole.value = value as Exclude<WorkspaceRole, 'owner'>; showMemberRole.value = false; void saveRole(); }
@@ -120,7 +121,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
     </section>
   </MobileShell>
 
-  <van-popup v-model:show="showWorkspace" position="bottom" round data-ai-id="workspace-picker"><van-cell title="切换工作区" /><van-cell v-for="workspace in store.workspaces" :key="workspace.id" :title="workspace.name" :label="roleText(workspace.role)" is-link :data-ai-id="`workspace-option-${workspace.id}`" @click="selectWorkspace(workspace.id)" /></van-popup>
+  <WorkspacePicker v-model:show="showWorkspace" v-model:show-create="showWorkspaceCreate" />
   <van-dialog v-model:show="showInvite" title="添加成员" :show-confirm-button="false" :show-cancel-button="false" :close-on-click-overlay="false" data-ai-id="member-invite-dialog" @closed="closeInvite">
     <van-field :model-value="addMode === 'invite' ? '邀请新账号' : '加入已有账号'" label="添加方式" readonly is-link data-ai-id="member-add-mode" @click="addMode = addMode === 'invite' ? 'existing' : 'invite'; inviteToken = ''" />
     <van-field v-model="inviteUsername" label="用户名" :placeholder="addMode === 'invite' ? '由邀请人设置用户名' : '输入已注册用户名'" data-ai-id="member-add-username" />

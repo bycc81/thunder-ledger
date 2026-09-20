@@ -34,7 +34,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       const preferredWorkspaceId = selectedWorkspaceId.value || savedWorkspaceId || '';
       selectedWorkspaceId.value = data.some((w) => w.id === preferredWorkspaceId) ? preferredWorkspaceId : data[0]?.id ?? '';
       if (selectedWorkspaceId.value) localStorage.setItem(SELECTED_WORKSPACE_STORAGE_KEY, selectedWorkspaceId.value);
-      else localStorage.removeItem(SELECTED_WORKSPACE_STORAGE_KEY);
+      else { localStorage.removeItem(SELECTED_WORKSPACE_STORAGE_KEY); members.value = []; batches.value = []; audits.value = []; }
       await loadScoped();
     } catch { error.value = '工作区加载失败，请重试'; }
     finally { loading.value = false; }
@@ -54,6 +54,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     } catch { error.value = '工作区数据加载失败，请重试'; }
   }
   async function select(id: string) { selectedWorkspaceId.value = id; localStorage.setItem(SELECTED_WORKSPACE_STORAGE_KEY, id); await loadScoped(); }
+  async function createWorkspace(name: string) {
+    const { data } = await api.post<{ id: string }>('/workspaces', { name, kind: 'collaborative' });
+    await load();
+    await select(data.id);
+    return data.id;
+  }
   function clear() { workspaces.value = []; selectedWorkspaceId.value = ''; members.value = []; batches.value = []; audits.value = []; auditTotal.value = 0; localStorage.removeItem(SELECTED_WORKSPACE_STORAGE_KEY); }
-  return { workspaces, selectedWorkspaceId, members, batches, audits, auditTotal, loading, error, selectedWorkspace, canManageWorkspace, canCreateBatch, canEditProducts, load, loadScoped, select, clear };
+  return { workspaces, selectedWorkspaceId, members, batches, audits, auditTotal, loading, error, selectedWorkspace, canManageWorkspace, canCreateBatch, canEditProducts, load, loadScoped, select, createWorkspace, clear };
 });
