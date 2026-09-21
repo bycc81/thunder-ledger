@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-
 type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
 
-const props = defineProps<{
+defineProps<{
   page: Page;
   workspaceName?: string;
 }>();
@@ -13,11 +11,6 @@ const emit = defineEmits<{
   navigate: [page: Page];
 }>();
 
-const isWorkspaceActive = computed(() => props.page === 'overview');
-
-function returnToWorkspaceIfActive() {
-  if (isWorkspaceActive.value) emit('navigate', 'overview');
-}
 </script>
 
 <template>
@@ -34,7 +27,7 @@ function returnToWorkspaceIfActive() {
     </main>
 
     <van-tabbar :model-value="page" fixed data-ai-id="bottom-navigation" @change="(value) => emit('navigate', value as Page)">
-      <van-tabbar-item name="overview" icon="home-o" data-ai-id="nav-workspace" @click="returnToWorkspaceIfActive">工作区</van-tabbar-item>
+      <van-tabbar-item name="overview" icon="home-o" data-ai-id="nav-workspace">工作区</van-tabbar-item>
       <van-tabbar-item name="products" icon="goods-collect-o" data-ai-id="nav-products">商品</van-tabbar-item>
       <van-tabbar-item name="batches" icon="orders-o" data-ai-id="nav-batches">批次</van-tabbar-item>
       <van-tabbar-item name="profile" icon="contact" data-ai-id="nav-profile">我的</van-tabbar-item>
