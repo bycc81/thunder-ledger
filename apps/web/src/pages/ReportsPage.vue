@@ -21,6 +21,8 @@ const error = ref('');
 const permissionDenied = ref(false);
 const showWorkspace = ref(false);
 const showExport = ref(false);
+const showReportTypePicker = ref(false);
+const showBatchPicker = ref(false);
 
 const reportOptions = [
   { text: '销售报表', value: 'sales' },
@@ -30,9 +32,13 @@ const reportOptions = [
   { text: '待结算', value: 'unsettled' },
 ];
 const currentReportLabel = computed(() => reportOptions.find((item) => item.value === reportType.value)?.text ?? '报表');
+const batchOptions = computed(() => [{ text: '全部批次', value: '' }, ...store.batches.map((batch) => ({ text: batch.name, value: batch.id }))]);
+const currentBatchLabel = computed(() => batchOptions.value.find((item) => item.value === batchId.value)?.text ?? '全部批次');
 const canQuery = computed(() => Boolean(store.selectedWorkspaceId) && !loading.value && !exporting.value);
 
 function navigate(page: Page) { void router.push(page === 'overview' ? '/workspace' : `/${page}`); }
+function chooseReportType({ selectedValues }: { selectedValues: string[] }) { reportType.value = selectedValues[0] as ReportType; showReportTypePicker.value = false; }
+function chooseBatch({ selectedValues }: { selectedValues: string[] }) { batchId.value = selectedValues[0] ?? ''; showBatchPicker.value = false; }
 async function selectWorkspace(id: string) { showWorkspace.value = false; await store.select(id); batchId.value = ''; result.value = null; error.value = ''; permissionDenied.value = false; }
 function queryParams() {
   return {
@@ -102,10 +108,10 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); });
     <section class="reports-page" data-ai-id="b5-report-page">
       <header class="page-heading"><div><button class="workspace-back-link" type="button" aria-label="返回工作区" data-ai-id="report-workspace-back" @click="router.push('/workspace')"><van-icon name="arrow-left" aria-hidden="true" /><span>工作区</span></button><h1>报表</h1></div></header>
       <section class="filter-panel" data-ai-id="report-filter">
-        <van-dropdown-menu>
-          <van-dropdown-item v-model="reportType" :options="reportOptions" data-ai-id="report-type-selector" />
-          <van-dropdown-item v-model="batchId" :options="[{ text: '全部批次', value: '' }, ...store.batches.map((batch) => ({ text: batch.name, value: batch.id }))]" data-ai-id="report-batch-selector" />
-        </van-dropdown-menu>
+        <div class="picker-fields">
+          <button class="filter-picker" type="button" data-ai-id="report-type-selector" @click="showReportTypePicker = true"><span>报表类型</span><strong>{{ currentReportLabel }}</strong><van-icon name="arrow" /></button>
+          <button class="filter-picker" type="button" data-ai-id="report-batch-selector" @click="showBatchPicker = true"><span>批次范围</span><strong>{{ currentBatchLabel }}</strong><van-icon name="arrow" /></button>
+        </div>
         <div class="date-fields" data-ai-id="report-date-range">
           <input v-model="from" type="date" aria-label="开始日期">
           <span>至</span>
@@ -138,6 +144,8 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); });
     <van-cell title="切换工作区" />
     <van-cell v-for="workspace in store.workspaces" :key="workspace.id" :title="workspace.name" :label="workspace.role" is-link :data-ai-id="`workspace-option-${workspace.id}`" @click="selectWorkspace(workspace.id)" />
   </van-popup>
+  <van-popup v-model:show="showReportTypePicker" position="bottom" round data-ai-id="report-type-picker"><van-picker title="选择报表类型" :columns="reportOptions" :model-value="[reportType]" @confirm="chooseReportType" @cancel="showReportTypePicker = false" /></van-popup>
+  <van-popup v-model:show="showBatchPicker" position="bottom" round data-ai-id="report-batch-picker"><van-picker title="选择批次范围" :columns="batchOptions" :model-value="[batchId]" @confirm="chooseBatch" @cancel="showBatchPicker = false" /></van-popup>
   <van-popup v-model:show="showExport" position="bottom" round closeable data-ai-id="report-export-dialog">
     <section class="export-sheet">
       <h2>导出报表</h2>
@@ -155,8 +163,9 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); });
 .page-heading { margin-bottom:14px; }.workspace-back-link { display:inline-flex; min-height:44px; align-items:center; gap:3px; margin:-8px 0 0 -8px; padding:0 8px; border:0; background:transparent; color:#3657c8; font:inherit; font-size:13px; }.workspace-back-link:focus-visible { outline:2px solid #3657c8; outline-offset:1px; }
 .page-heading h1 { margin:0; font-size:24px; }
 .filter-panel { display:grid; gap:10px; margin-bottom:16px; }
-.filter-panel :deep(.van-dropdown-menu__bar) { height:44px; border:1px solid #d8dde8; border-radius:10px; box-shadow:none; }
-.filter-panel :deep(.van-dropdown-menu) { overflow:hidden; border-radius:10px; }
+.picker-fields { display:grid; gap:8px; }
+.filter-picker { display:grid; width:100%; min-height:48px; grid-template-columns:minmax(0,1fr) auto 16px; align-items:center; gap:8px; padding:0 12px; border:1px solid #d8dde8; border-radius:10px; background:#fff; color:#172033; text-align:left; }
+.filter-picker span { color:#71809a; font-size:13px; }.filter-picker strong { max-width:180px; overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }.filter-picker :deep(.van-icon) { color:#8993a7; font-size:15px; }
 .date-fields { display:flex; align-items:center; gap:8px; color:#71809a; font-size:13px; }
 .date-fields input { width:100%; min-width:0; min-height:44px; padding:0 9px; border:1px solid #d8dde8; border-radius:8px; background:#fff; color:#172033; }
 .filter-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }

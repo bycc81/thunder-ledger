@@ -22,6 +22,8 @@ const page = ref(1);
 const total = ref(0);
 const audits = ref<Audit[]>([]);
 const error = ref('');
+const showActionPicker = ref(false);
+const showActorPicker = ref(false);
 const roleText = (role: WorkspaceRole) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role]);
 const actionText = (action: string) => ({
   'workspace.create': '创建工作区',
@@ -54,8 +56,14 @@ const actionText = (action: string) => ({
 const entityText = (record: Audit) => ({ batch: '批次', batch_member: '批次成员', workspace_member: '工作区成员', invitation: '邀请' }[record.entity_type] ?? record.entity_type);
 const formatDate = formatDateTime;
 const canView = computed(() => store.canManageWorkspace);
+const actionOptions = [{ text: '全部动作', value: '' }, { text: '新增销售', value: 'sale.create' }, { text: '新增采购', value: 'inventory.purchase.create' }, { text: '确认结算', value: 'settlement.confirm' }, { text: '导出报表', value: 'report.export' }];
+const actorOptions = computed(() => [{ text: '全部操作者', value: '' }, ...store.members.map((member) => ({ text: member.username, value: member.id }))]);
+const currentActionLabel = computed(() => actionOptions.find((option) => option.value === action.value)?.text ?? '全部动作');
+const currentActorLabel = computed(() => actorOptions.value.find((option) => option.value === actorUserId.value)?.text ?? '全部操作者');
 
 function navigate(page: Page) { void router.push(page === 'overview' ? '/workspace' : `/${page}`); }
+function chooseAction({ selectedValues }: { selectedValues: string[] }) { action.value = selectedValues[0] ?? ''; showActionPicker.value = false; }
+function chooseActor({ selectedValues }: { selectedValues: string[] }) { actorUserId.value = selectedValues[0] ?? ''; showActorPicker.value = false; }
 async function handleWorkspaceSelected() {
   page.value = 1;
   total.value = 0;
@@ -84,10 +92,10 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); if (ca
       <header class="page-heading" data-ai-id="operation-record-header"><div><button class="workspace-back-link" type="button" aria-label="返回工作区" data-ai-id="operation-record-workspace-back" @click="router.push('/workspace')"><van-icon name="arrow-left" aria-hidden="true" /><span>工作区</span></button><h1>操作记录</h1></div><van-button v-if="canView" class="refresh-button" plain icon="replay" :loading="refreshing" data-ai-id="operation-record-refresh" @click="refresh">刷新</van-button></header>
       <p v-if="!canView" class="permission-notice" data-ai-id="operation-record-permission">当前角色：{{ roleText(store.selectedWorkspace?.role ?? 'viewer') }}，无权查看操作记录。</p>
       <section v-else class="record-filter" data-ai-id="operation-record-filter">
-        <van-dropdown-menu>
-          <van-dropdown-item v-model="action" :options="[{ text: '全部动作', value: '' }, { text: '新增销售', value: 'sale.create' }, { text: '新增采购', value: 'inventory.purchase.create' }, { text: '确认结算', value: 'settlement.confirm' }, { text: '导出报表', value: 'report.export' }]" data-ai-id="operation-record-action" />
-          <van-dropdown-item v-model="actorUserId" :options="[{ text: '全部操作者', value: '' }, ...store.members.map((member) => ({ text: member.username, value: member.id }))]" data-ai-id="operation-record-actor" />
-        </van-dropdown-menu>
+        <div class="picker-fields">
+          <button class="filter-picker" type="button" data-ai-id="operation-record-action" @click="showActionPicker = true"><span>操作类型</span><strong>{{ currentActionLabel }}</strong><van-icon name="arrow" /></button>
+          <button class="filter-picker" type="button" data-ai-id="operation-record-actor" @click="showActorPicker = true"><span>操作者</span><strong>{{ currentActorLabel }}</strong><van-icon name="arrow" /></button>
+        </div>
         <div class="record-date-range" data-ai-id="operation-record-date-range"><input v-model="from" type="date" aria-label="开始日期"><span>至</span><input v-model="to" type="date" aria-label="结束日期"></div>
         <van-button type="primary" block :loading="refreshing" data-ai-id="operation-record-query" @click="page = 1; refresh()">查询</van-button>
       </section>
@@ -107,6 +115,8 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); if (ca
   </MobileShell>
 
   <WorkspacePicker v-model:show="showWorkspace" v-model:show-create="showWorkspaceCreate" @selected="handleWorkspaceSelected" />
+  <van-popup v-model:show="showActionPicker" position="bottom" round data-ai-id="operation-record-action-picker"><van-picker title="选择操作类型" :columns="actionOptions" :model-value="[action]" @confirm="chooseAction" @cancel="showActionPicker = false" /></van-popup>
+  <van-popup v-model:show="showActorPicker" position="bottom" round data-ai-id="operation-record-actor-picker"><van-picker title="选择操作者" :columns="actorOptions" :model-value="[actorUserId]" @confirm="chooseActor" @cancel="showActorPicker = false" /></van-popup>
 </template>
 
 <style scoped>
@@ -116,7 +126,7 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); if (ca
 .refresh-button { min-height:38px; padding:0 10px; color:#3657c8; font-size:13px; }
 .permission-notice { margin:0 0 14px; padding:10px 12px; border-radius:8px; background:#f1f3f6; color:#68717d; font-size:12px; line-height:1.5; }
 .record-list { display:grid; width:100%; max-width:100%; min-width:0; gap:8px; }
-.record-filter { display:grid; gap:10px; margin-bottom:14px; }.record-filter :deep(.van-dropdown-menu__bar) { height:44px; border:1px solid #d8dde8; border-radius:10px; box-shadow:none; }.record-date-range { display:flex; align-items:center; gap:8px; color:#71809a; font-size:13px; }.record-date-range input { width:100%; min-width:0; min-height:44px; padding:0 9px; border:1px solid #d8dde8; border-radius:8px; background:#fff; color:#172033; }.record-filter :deep(.van-button) { min-height:44px; }.record-pagination { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:14px; color:#71809a; font-size:12px; }.record-pagination :deep(.van-button) { min-height:38px; }
+.record-filter { display:grid; gap:10px; margin-bottom:14px; }.picker-fields { display:grid; gap:8px; }.filter-picker { display:grid; width:100%; min-height:48px; grid-template-columns:minmax(0,1fr) auto 16px; align-items:center; gap:8px; padding:0 12px; border:1px solid #d8dde8; border-radius:10px; background:#fff; color:#172033; text-align:left; }.filter-picker span { color:#71809a; font-size:13px; }.filter-picker strong { max-width:180px; overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }.filter-picker :deep(.van-icon) { color:#8993a7; font-size:15px; }.record-date-range { display:flex; align-items:center; gap:8px; color:#71809a; font-size:13px; }.record-date-range input { width:100%; min-width:0; min-height:44px; padding:0 9px; border:1px solid #d8dde8; border-radius:8px; background:#fff; color:#172033; }.record-filter :deep(.van-button) { min-height:44px; }.record-pagination { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:14px; color:#71809a; font-size:12px; }.record-pagination :deep(.van-button) { min-height:38px; }
 .record-item { display:flex; width:100%; max-width:100%; min-width:0; align-items:flex-start; justify-content:space-between; gap:10px; min-height:76px; padding:14px 12px; border-radius:10px; background:#fff; box-shadow:0 1px 0 #e4e8f0; }
 .record-main { min-width:0; max-width:calc(100% - 92px); overflow:hidden; }
 .record-main strong { display:block; overflow:hidden; margin-bottom:6px; color:#172033; font-size:15px; text-overflow:ellipsis; white-space:nowrap; }
