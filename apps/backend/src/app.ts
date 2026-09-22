@@ -10,6 +10,8 @@ import { checkDatabase, getPool } from './db/client.js';
 import { registerAssetRoutes } from './assets.js';
 import { auth, registerAccessRoutes, type AccessRequest } from './access.js';
 import { registerProductRoutes } from './products.js';
+import { registerProductGroupRoutes } from './product-groups.js';
+import { registerListingRoutes } from './listings.js';
 import { registerInventoryRoutes } from './inventory.js';
 import { registerSalesExpenseRoutes } from './sales-expenses.js';
 import { registerSettlementRoutes } from './settlements.js';
@@ -137,6 +139,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerAssetRoutes(app);
   await registerAccessRoutes(app);
   await registerProductRoutes(app);
+  await registerProductGroupRoutes(app);
+  await registerListingRoutes(app);
   await registerInventoryRoutes(app);
   await registerSalesExpenseRoutes(app);
   await registerSettlementRoutes(app);

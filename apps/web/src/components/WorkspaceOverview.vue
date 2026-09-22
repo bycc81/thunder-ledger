@@ -25,7 +25,7 @@ const formatDate = formatDateTime;
         <h1>{{ store.selectedWorkspace?.name || '工作区' }}</h1>
         <span v-if="store.selectedWorkspace" class="overview-role">{{ roleText(store.selectedWorkspace.role) }}</span>
       </div>
-      <van-button v-if="store.canCreateBatch" type="primary" data-ai-id="batch-create-overview" @click="emit('createBatch')">新建批次</van-button>
+      <van-button v-if="store.canCreateBatch" class="tl-button--secondary" type="primary" data-ai-id="batch-create-overview" @click="emit('createBatch')">新建批次</van-button>
     </div>
 
     <div class="overview-stats" data-ai-id="workspace-stats">
@@ -37,7 +37,7 @@ const formatDate = formatDateTime;
     <section class="overview-section" data-ai-id="recent-batches">
       <div class="overview-section-head">
         <h2>最近批次</h2>
-        <van-button v-if="store.batches.length" class="text-button" type="primary" size="small" data-ai-id="recent-batches-more" @click="emit('navigate', 'batches')">查看全部</van-button>
+        <van-button v-if="store.batches.length" class="text-button tl-button--secondary" type="primary" size="small" data-ai-id="recent-batches-more" @click="emit('navigate', 'batches')">查看全部</van-button>
       </div>
       <van-empty v-if="!recentBatches.length" description="暂无批次" data-ai-id="batch-empty">
         <van-button v-if="store.canCreateBatch" type="primary" size="small" data-ai-id="batch-empty-create" @click="emit('createBatch')">新建批次</van-button>
@@ -70,7 +70,7 @@ const formatDate = formatDateTime;
 .overview-eyebrow { display:block; margin-bottom:5px; color:#8993a7; font-size:11px; }
 .overview-title h1 { overflow:hidden; margin:0 0 5px; color:#172033; font-size:23px; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; }
 .overview-role { color:#536078; font-size:12px; }
-.overview-header :deep(.van-button) { flex-shrink:0; min-height:38px; padding:0 11px; font-size:14px; }
+.overview-header :deep(.van-button) { flex-shrink:0; padding:0 11px; font-size:14px; }
 .overview-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:hidden; margin:0 0 20px; border-radius:10px; background:#e4e8f0; }
 .overview-stat { min-width:0; min-height:68px; padding:10px 8px; background:#fff; text-align:center; }
 .overview-stat small { display:block; overflow:hidden; color:#8993a7; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
@@ -78,7 +78,6 @@ const formatDate = formatDateTime;
 .overview-section { margin-bottom:25px; }
 .overview-section-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px; }
 .overview-section-head h2 { margin:0; color:#172033; font-size:17px; line-height:1.3; }
-.overview-section-head :deep(.van-button) { min-height:44px; }
 .overview-list { display:grid; gap:8px; }
 .overview-batch-item { position:relative; display:flex; align-items:flex-start; justify-content:space-between; min-height:76px; padding:14px 42px 12px 12px; border-radius:10px; background:#fff; color:#172033; box-shadow:0 1px 0 #e4e8f0; cursor:pointer; }
 .overview-batch-item:active,.overview-batch-item:focus-visible { background:#edf1ff; outline:2px solid #3657c8; outline-offset:1px; }
@@ -99,6 +98,6 @@ const formatDate = formatDateTime;
 .command-arrow { flex:0 0 auto; font-size:15px !important; }
 .command-icon { display:grid; place-items:center; width:32px; height:32px; border-radius:8px; background:#edf1ff; color:#3657c8; }
 .command-icon :deep(.van-icon) { color:inherit; font-size:18px; }
-.overview-section-head :deep(.text-button) { min-height:38px; padding:0 4px; border:0; background:transparent; box-shadow:none; font-size:13px; }
+.overview-section-head :deep(.text-button) { padding:0 4px; border:0; background:transparent; box-shadow:none; font-size:13px; }
 .workspace-overview :deep(.van-empty) { padding:16px 12px; border-radius:10px; background:#fff; }
 </style>

@@ -53,7 +53,6 @@ const actionText = (action: string) => ({
   'member.remove': '移除成员',
   register: '注册账号',
 }[action] ?? action);
-const entityText = (record: Audit) => ({ batch: '批次', batch_member: '批次成员', workspace_member: '工作区成员', invitation: '邀请' }[record.entity_type] ?? record.entity_type);
 const formatDate = formatDateTime;
 const canView = computed(() => store.canManageWorkspace);
 const actionOptions = [{ text: '全部动作', value: '' }, { text: '新增销售', value: 'sale.create' }, { text: '新增采购', value: 'inventory.purchase.create' }, { text: '确认结算', value: 'settlement.confirm' }, { text: '导出报表', value: 'report.export' }];
@@ -89,7 +88,7 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); if (ca
 <template>
   <MobileShell page="overview" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
     <section class="records-page" data-ai-id="operation-record-page">
-      <header class="page-heading" data-ai-id="operation-record-header"><div><button class="workspace-back-link" type="button" aria-label="返回工作区" data-ai-id="operation-record-workspace-back" @click="router.push('/workspace')"><van-icon name="arrow-left" aria-hidden="true" /><span>工作区</span></button><h1>操作记录</h1></div><van-button v-if="canView" class="refresh-button" plain icon="replay" :loading="refreshing" data-ai-id="operation-record-refresh" @click="refresh">刷新</van-button></header>
+      <header class="page-heading" data-ai-id="operation-record-header"><div><button class="workspace-back-link" type="button" aria-label="返回工作区" data-ai-id="operation-record-workspace-back" @click="router.push('/workspace')"><van-icon name="arrow-left" aria-hidden="true" /><span>工作区</span></button><h1>操作记录</h1></div><van-button v-if="canView" class="refresh-button tl-button--secondary" plain icon="replay" :loading="refreshing" data-ai-id="operation-record-refresh" @click="refresh">刷新</van-button></header>
       <p v-if="!canView" class="permission-notice" data-ai-id="operation-record-permission">当前角色：{{ roleText(store.selectedWorkspace?.role ?? 'viewer') }}，无权查看操作记录。</p>
       <section v-else class="record-filter" data-ai-id="operation-record-filter">
         <div class="picker-fields">
@@ -105,12 +104,12 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); if (ca
         <van-empty v-else-if="!audits.length" description="暂无操作记录" data-ai-id="operation-record-empty" />
         <div v-else class="record-list" data-ai-id="operation-record-list">
           <article v-for="record in audits" :key="record.id" class="record-item" :data-ai-id="`operation-record-${record.id}`">
-            <div class="record-main"><strong>{{ actionText(record.action) }}</strong><span>{{ entityText(record) }}<template v-if="record.entity_id"> · {{ record.entity_id }}</template></span></div>
+            <div class="record-main"><strong>{{ actionText(record.action) }}</strong></div>
             <div class="record-meta"><span>{{ record.actor_username || '--' }}</span><time>{{ formatDate(record.created_at) }}</time></div>
           </article>
         </div>
       </template>
-      <div v-if="canView && total > 50" class="record-pagination"><van-button plain size="small" :disabled="page <= 1 || refreshing" @click="page -= 1; refresh()">上一页</van-button><span>第 {{ page }} 页</span><van-button plain size="small" :disabled="page * 50 >= total || refreshing" @click="page += 1; refresh()">下一页</van-button></div>
+      <div v-if="canView && total > 50" class="record-pagination"><van-button class="tl-button--secondary" plain size="small" :disabled="page <= 1 || refreshing" @click="page -= 1; refresh()">上一页</van-button><span>第 {{ page }} 页</span><van-button class="tl-button--secondary" plain size="small" :disabled="page * 50 >= total || refreshing" @click="page += 1; refresh()">下一页</van-button></div>
     </section>
   </MobileShell>
 
@@ -123,14 +122,13 @@ onMounted(async () => { if (!store.workspaces.length) await store.load(); if (ca
 .records-page { width:100%; max-width:100%; min-width:0; overflow-x:hidden; padding-bottom:8px; }
 .page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:14px; }.workspace-back-link { display:inline-flex; min-height:44px; align-items:center; gap:3px; margin:-8px 0 0 -8px; padding:0 8px; border:0; background:transparent; color:#3657c8; font:inherit; font-size:13px; }.workspace-back-link:focus-visible { outline:2px solid #3657c8; outline-offset:1px; }
 .page-heading h1 { margin:0; font-size:24px; }
-.refresh-button { min-height:38px; padding:0 10px; color:#3657c8; font-size:13px; }
+.refresh-button { padding:0 10px; color:#3657c8; font-size:13px; }
 .permission-notice { margin:0 0 14px; padding:10px 12px; border-radius:8px; background:#f1f3f6; color:#68717d; font-size:12px; line-height:1.5; }
 .record-list { display:grid; width:100%; max-width:100%; min-width:0; gap:8px; }
-.record-filter { display:grid; gap:10px; margin-bottom:14px; }.picker-fields { display:grid; gap:8px; }.filter-picker { display:grid; width:100%; min-height:48px; grid-template-columns:minmax(0,1fr) auto 16px; align-items:center; gap:8px; padding:0 12px; border:1px solid #d8dde8; border-radius:10px; background:#fff; color:#172033; text-align:left; }.filter-picker span { color:#71809a; font-size:13px; }.filter-picker strong { max-width:180px; overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }.filter-picker :deep(.van-icon) { color:#8993a7; font-size:15px; }.record-date-range { display:flex; align-items:center; gap:8px; color:#71809a; font-size:13px; }.record-date-range input { width:100%; min-width:0; min-height:44px; padding:0 9px; border:1px solid #d8dde8; border-radius:8px; background:#fff; color:#172033; }.record-filter :deep(.van-button) { min-height:44px; }.record-pagination { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:14px; color:#71809a; font-size:12px; }.record-pagination :deep(.van-button) { min-height:38px; }
-.record-item { display:flex; width:100%; max-width:100%; min-width:0; align-items:flex-start; justify-content:space-between; gap:10px; min-height:76px; padding:14px 12px; border-radius:10px; background:#fff; box-shadow:0 1px 0 #e4e8f0; }
-.record-main { min-width:0; max-width:calc(100% - 92px); overflow:hidden; }
-.record-main strong { display:block; overflow:hidden; margin-bottom:6px; color:#172033; font-size:15px; text-overflow:ellipsis; white-space:nowrap; }
-.record-main span { display:block; max-width:100%; overflow:hidden; color:#8993a7; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
-.record-meta { display:flex; width:82px; max-width:82px; flex-shrink:0; flex-direction:column; align-items:flex-end; gap:6px; overflow:hidden; color:#8993a7; font-size:11px; }
-.record-meta time { white-space:nowrap; }
+.record-filter { display:grid; gap:10px; margin-bottom:14px; }.picker-fields { display:grid; gap:8px; }.filter-picker { display:grid; width:100%; min-height:48px; grid-template-columns:minmax(0,1fr) auto 16px; align-items:center; gap:8px; padding:0 12px; border:1px solid #d8dde8; border-radius:10px; background:#fff; color:#172033; text-align:left; }.filter-picker span { color:#71809a; font-size:13px; }.filter-picker strong { max-width:180px; overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }.filter-picker :deep(.van-icon) { color:#8993a7; font-size:15px; }.record-date-range { display:flex; align-items:center; gap:8px; color:#71809a; font-size:13px; }.record-date-range input { width:100%; min-width:0; min-height:44px; padding:0 9px; border:1px solid #d8dde8; border-radius:8px; background:#fff; color:#172033; }.record-pagination { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:14px; color:#71809a; font-size:12px; }
+.record-item { display:grid; width:100%; max-width:100%; min-width:0; grid-template-columns:minmax(0,1fr) 142px; align-items:flex-start; gap:10px; min-height:64px; padding:14px 12px; border-radius:10px; background:#fff; box-shadow:0 1px 0 #e4e8f0; }
+.record-main { min-width:0; overflow:hidden; }
+.record-main strong { display:block; overflow:hidden; color:#172033; font-size:15px; text-overflow:ellipsis; white-space:nowrap; }
+.record-meta { display:flex; min-width:142px; flex-direction:column; align-items:flex-end; gap:4px; color:#71809a; font-size:12px; }
+.record-meta time { font-variant-numeric:tabular-nums; white-space:nowrap; }
 </style>

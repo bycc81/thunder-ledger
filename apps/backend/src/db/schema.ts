@@ -21,6 +21,8 @@ export const assets = pgTable('assets', {
 export const products = pgTable('products', {
   id: uuid('id').primaryKey(),
   workspaceId: uuid('workspace_id').notNull(),
+  groupId: uuid('group_id'),
+  variantName: text('variant_name'),
   name: text('name').notNull(),
   description: text('description'),
   referencePrice: numeric('reference_price', { precision: 12, scale: 2 }),
@@ -28,6 +30,35 @@ export const products = pgTable('products', {
   updatedBy: uuid('updated_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+});
+
+export const productGroups = pgTable('product_groups', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  referencePrice: numeric('reference_price', { precision: 12, scale: 2 }),
+  createdBy: uuid('created_by').notNull(),
+  updatedBy: uuid('updated_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+});
+
+export const productGroupTemplates = pgTable('product_group_templates', {
+  id: uuid('id').primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  name: text('name').notNull(),
+  createdBy: uuid('created_by').notNull(),
+  updatedBy: uuid('updated_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+});
+
+export const productGroupTemplateVariants = pgTable('product_group_template_variants', {
+  id: uuid('id').primaryKey(),
+  templateId: uuid('template_id').notNull(),
+  name: text('name').notNull(),
+  position: integer('position').notNull(),
 });
 
 export const productImages = pgTable('product_images', {
@@ -56,6 +87,9 @@ export const inventoryPurchases = pgTable('inventory_purchases', {
   purchasedOn: text('purchased_on').notNull(),
   sourceUrl: text('source_url'),
   note: text('note'),
+  productNameSnapshot: text('product_name_snapshot'),
+  productGroupNameSnapshot: text('product_group_name_snapshot'),
+  variantNameSnapshot: text('variant_name_snapshot'),
   createdBy: uuid('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
 });
@@ -69,14 +103,32 @@ export const purchaseCostShares = pgTable('purchase_cost_shares', {
 export const listings = pgTable('listings', {
   id: uuid('id').primaryKey(),
   batchId: uuid('batch_id').notNull(),
-  productId: uuid('product_id').notNull(),
+  productId: uuid('product_id'),
+  productGroupId: uuid('product_group_id'),
   channelId: uuid('channel_id').notNull(),
   externalUrl: text('external_url'),
   displayPriceCents: bigint('display_price_cents', { mode: 'number' }),
   status: text('status').notNull(),
+  productNameSnapshot: text('product_name_snapshot'),
+  productGroupNameSnapshot: text('product_group_name_snapshot'),
   createdBy: uuid('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+});
+
+export const productGroupImages = pgTable('product_group_images', {
+  productGroupId: uuid('product_group_id').notNull(),
+  assetId: uuid('asset_id').notNull(),
+  position: integer('position').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+});
+
+export const listingVariants = pgTable('listing_variants', {
+  listingId: uuid('listing_id').notNull(),
+  productId: uuid('product_id').notNull(),
+  displayPriceCents: bigint('display_price_cents', { mode: 'number' }),
+  status: text('status').notNull(),
+  variantNameSnapshot: text('variant_name_snapshot'),
 });
 
 export const sales = pgTable('sales', {
@@ -94,6 +146,9 @@ export const sales = pgTable('sales', {
   sellerUserId: uuid('seller_user_id').notNull(),
   occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
   note: text('note'),
+  productNameSnapshot: text('product_name_snapshot'),
+  productGroupNameSnapshot: text('product_group_name_snapshot'),
+  variantNameSnapshot: text('variant_name_snapshot'),
   createdBy: uuid('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
 });

@@ -109,13 +109,13 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
 <template>
   <MobileShell page="overview" :workspace-name="store.selectedWorkspace?.name" @open-workspace="showWorkspace = true" @navigate="navigate">
     <section class="members-page" data-ai-id="workspace-members-page">
-      <header class="page-heading" data-ai-id="member-list-header"><div><button class="workspace-back-link" type="button" aria-label="返回工作区" data-ai-id="member-workspace-back" @click="router.push('/workspace')"><van-icon name="arrow-left" aria-hidden="true" /><span>工作区</span></button><h1>成员</h1></div><div v-if="store.canManageWorkspace" data-ai-id="member-add"><van-button type="primary" data-ai-id="member-invite" @click="openInvite">添加成员</van-button></div></header>
+      <header class="page-heading" data-ai-id="member-list-header"><div><button class="workspace-back-link" type="button" aria-label="返回工作区" data-ai-id="member-workspace-back" @click="router.push('/workspace')"><van-icon name="arrow-left" aria-hidden="true" /><span>工作区</span></button><h1>成员</h1></div><div v-if="store.canManageWorkspace" data-ai-id="member-add"><van-button class="tl-button--secondary" type="primary" data-ai-id="member-invite" @click="openInvite">添加成员</van-button></div></header>
       <p class="permission-notice" data-ai-id="member-permission-notice">{{ permissionText }}</p>
       <van-empty v-if="!store.members.length" description="暂无成员" data-ai-id="member-empty" />
       <div v-else class="member-list" data-ai-id="member-list">
         <article v-for="member in store.members" :key="member.id" class="member-item" :data-ai-id="`member-item-${member.id}`">
           <div class="member-main"><strong>{{ member.username }}</strong><div class="member-meta"><van-tag :type="member.role === 'owner' ? 'primary' : member.role === 'admin' ? 'warning' : 'default'">{{ roleText(member.role) }}</van-tag><span>邀请时间 {{ formatDate(member.invited_at) }}</span></div></div>
-          <div v-if="member.role !== 'owner' && store.canManageWorkspace" class="member-actions"><van-button class="member-action" size="small" plain :data-ai-id="`member-role-${member.id}`" @click="openRole(member)">角色</van-button><van-button class="member-action danger-action" size="small" plain type="danger" :loading="removingId === member.id" :data-ai-id="`member-remove-${member.id}`" @click="requestRemoveMember(member)">移除</van-button></div>
+          <div v-if="member.role !== 'owner' && store.canManageWorkspace" class="member-actions"><van-button class="member-action tl-button--compact" size="small" plain :data-ai-id="`member-role-${member.id}`" @click="openRole(member)">角色</van-button><van-button class="member-action danger-action tl-button--compact" size="small" plain type="danger" :loading="removingId === member.id" :data-ai-id="`member-remove-${member.id}`" @click="requestRemoveMember(member)">移除</van-button></div>
         </article>
       </div>
     </section>
@@ -140,7 +140,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
 .page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:14px; }
 .workspace-back-link { display:inline-flex; min-height:44px; align-items:center; gap:3px; margin:-8px 0 0 -8px; padding:0 8px; border:0; background:transparent; color:#3657c8; font:inherit; font-size:13px; }.workspace-back-link:focus-visible { outline:2px solid #3657c8; outline-offset:1px; }
 .page-heading h1 { margin:0; font-size:24px; }
-.page-heading :deep(.van-button) { min-height:38px; padding:0 10px; font-size:13px; }
+.page-heading :deep(.van-button) { padding:0 10px; font-size:13px; }
 .permission-notice { margin:0 0 14px; padding:10px 12px; border-radius:8px; background:#edf1ff; color:#536078; font-size:12px; line-height:1.5; }
 .member-list { display:grid; gap:8px; }
 .member-item { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:76px; padding:13px 12px; border-radius:10px; background:#fff; box-shadow:0 1px 0 #e4e8f0; }
@@ -149,7 +149,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
 .member-meta { display:flex; align-items:center; flex-wrap:wrap; gap:7px; color:#8993a7; font-size:11px; }
 .member-meta :deep(.van-tag) { min-height:22px; padding:2px 6px; font-size:11px; }
 .member-actions { display:flex; flex-shrink:0; gap:4px; }
-.member-action { min-height:34px; padding:0 7px; font-size:12px; }
+.member-action { padding:0 7px; font-size:12px; }
 .danger-action { color:#b42318 !important; }
 .invite-result { padding:4px 16px 14px; }
 .invite-result > span { display:block; margin:8px 0 4px; color:#8993a7; font-size:12px; }
