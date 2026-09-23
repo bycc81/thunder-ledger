@@ -64,7 +64,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
     <section class="batches-page" data-ai-id="batches-page">
       <header class="page-heading" data-ai-id="batch-list-header">
         <div><h1>批次</h1></div>
-        <van-button v-if="store.canCreateBatch" type="primary" data-ai-id="batch-create" @click="showCreate = true">新建批次</van-button>
+        <van-button v-if="store.canCreateBatch" class="tl-button--secondary" type="primary" data-ai-id="batch-create" @click="showCreate = true">新建批次</van-button>
       </header>
       <div class="filters" data-ai-id="batch-filters">
         <van-search v-model="search" shape="round" placeholder="搜索批次" data-ai-id="batch-search" />
@@ -76,7 +76,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
       <div v-else class="batch-list" data-ai-id="batch-list">
         <article v-for="batch in filteredBatches" :key="batch.id" class="batch-item" :data-ai-id="`batch-item-${batch.id}`" tabindex="0" @click="router.push(`/batches/${batch.id}`)" @keydown.enter="router.push(`/batches/${batch.id}`)">
           <div class="batch-main"><span class="batch-title">{{ batch.name }}</span><span class="batch-meta">创建于 {{ formatDate(batch.created_at) }} · {{ roleText(batch.role) }}</span></div>
-          <div class="batch-side"><van-tag :type="batch.status === 'open' ? 'success' : 'default'">{{ batch.status === 'open' ? '开放' : '已关闭' }}</van-tag><van-popover v-if="batch.role === 'owner' || store.canManageWorkspace" placement="left-start" :actions="[{ text: '删除批次', danger: true }]" @select="requestDelete(batch)"><van-button class="more-button" icon="ellipsis" plain type="default" :loading="deletingId === batch.id" :data-ai-id="`batch-more-${batch.id}`" @click.stop /></van-popover><van-icon name="arrow" class="batch-arrow" /></div>
+          <div class="batch-side"><van-tag :type="batch.status === 'open' ? 'success' : 'default'">{{ batch.status === 'open' ? '开放' : '已关闭' }}</van-tag><van-popover v-if="batch.role === 'owner' || store.canManageWorkspace" placement="left-start" :actions="[{ text: '删除批次', danger: true }]" @select="requestDelete(batch)"><van-button class="more-button tl-button--compact" icon="ellipsis" plain type="default" :loading="deletingId === batch.id" :data-ai-id="`batch-more-${batch.id}`" @click.stop /></van-popover><van-icon name="arrow" class="batch-arrow" /></div>
         </article>
       </div>
     </section>
@@ -93,7 +93,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
 .batches-page { padding-bottom: 8px; }
 .page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:18px; }
 .page-heading h1 { margin:0; font-size:24px; }
-.page-heading :deep(.van-button) { min-height:38px; padding:0 11px; font-size:14px; }
+.page-heading :deep(.van-button) { padding:0 11px; font-size:14px; }
 .filters { display:flex; align-items:center; gap:8px; margin:0 -4px 14px; }
 .filters :deep(.van-search) { flex:1; padding:0; }
 .filters :deep(.van-search__content) { min-height:40px; border:1px solid #d8dde8; border-radius:10px; background:#fff; }

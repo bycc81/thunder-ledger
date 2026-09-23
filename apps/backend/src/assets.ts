@@ -80,7 +80,7 @@ export async function registerAssetRoutes(app: FastifyInstance): Promise<void> {
   app.delete<{ Params: { workspaceId: string; assetId: string } }>('/api/workspaces/:workspaceId/assets/:assetId', async (request, reply) => {
     const r = request as AccessRequest;
     if (!(await workspaceAccess(r, reply, request.params.workspaceId, true))) return;
-    const row = (await getPool().query("SELECT object_key FROM assets WHERE id=$1 AND workspace_id=$2 AND created_by=$3 AND deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM product_images WHERE asset_id=assets.id)", [request.params.assetId, request.params.workspaceId, r.access!.id])).rows[0] as { object_key?: string } | undefined;
+    const row = (await getPool().query("SELECT object_key FROM assets WHERE id=$1 AND workspace_id=$2 AND created_by=$3 AND deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM product_images WHERE asset_id=assets.id) AND NOT EXISTS (SELECT 1 FROM product_group_images WHERE asset_id=assets.id)", [request.params.assetId, request.params.workspaceId, r.access!.id])).rows[0] as { object_key?: string } | undefined;
     if (!row?.object_key) return reply.code(404).send({ code: 'ASSET_NOT_FOUND' });
     const config = r2Config(); const s3 = client();
     if (!config || !s3) return reply.code(503).send({ code: 'STORAGE_NOT_CONFIGURED', message: '图片存储尚未配置' });

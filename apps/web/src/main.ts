@@ -5,6 +5,7 @@ import {
   Button,
   Cell,
   CellGroup,
+  Checkbox,
   Dialog,
   DropdownItem,
   DropdownMenu,
@@ -39,6 +40,10 @@ import ProfilePage from './pages/ProfilePage.vue';
 import ProductsPage from './pages/ProductsPage.vue';
 import ProductDetailPage from './pages/ProductDetailPage.vue';
 import ProductFormPage from './pages/ProductFormPage.vue';
+import ProductGroupFormPage from './pages/ProductGroupFormPage.vue';
+import ProductGroupDetailPage from './pages/ProductGroupDetailPage.vue';
+import ProductGroupTemplatePage from './pages/ProductGroupTemplatePage.vue';
+import ListingFormPage from './pages/ListingFormPage.vue';
 import InventoryPage from './pages/InventoryPage.vue';
 import PurchaseFormPage from './pages/PurchaseFormPage.vue';
 import TransactionsPage from './pages/TransactionsPage.vue';
@@ -64,6 +69,7 @@ const router = createRouter({
     { path: '/batches/:id/inventory', component: InventoryPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/inventory/purchases/new', component: PurchaseFormPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/inventory/purchases/:purchaseId/edit', component: PurchaseFormPage, meta: { requiresAuth: true } },
+    { path: '/batches/:id/listings/new', component: ListingFormPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/inventory/:productId', component: InventoryPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/transactions', component: TransactionsPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/transactions/sales/new', component: TransactionFormPage, meta: { requiresAuth: true } },
@@ -80,6 +86,10 @@ const router = createRouter({
     { path: '/accounts', component: AccountManagementPage, meta: { requiresAuth: true } },
     { path: '/products', component: ProductsPage, meta: { requiresAuth: true } },
     { path: '/products/new', component: ProductFormPage, meta: { requiresAuth: true } },
+    { path: '/product-groups/new', component: ProductGroupFormPage, meta: { requiresAuth: true } },
+    { path: '/product-groups/:id', component: ProductGroupDetailPage, meta: { requiresAuth: true } },
+    { path: '/product-groups/:id/edit', component: ProductGroupFormPage, meta: { requiresAuth: true } },
+    { path: '/product-group-templates', component: ProductGroupTemplatePage, meta: { requiresAuth: true } },
     { path: '/products/:id', component: ProductDetailPage, meta: { requiresAuth: true } },
     { path: '/products/:id/edit', component: ProductFormPage, meta: { requiresAuth: true } },
   ],
@@ -97,7 +107,7 @@ router.beforeEach(async (to) => {
   return true;
 });
 const app = createApp(App).use(pinia).use(router);
-[Button, Cell, CellGroup, Dialog, DropdownItem, DropdownMenu, Empty, Field, Form, Icon, Loading, NavBar, Picker, Popover, Popup, Radio, RadioGroup, Search, Tabbar, TabbarItem, Tag].forEach((component) => app.use(component));
+[Button, Cell, CellGroup, Checkbox, Dialog, DropdownItem, DropdownMenu, Empty, Field, Form, Icon, Loading, NavBar, Picker, Popover, Popup, Radio, RadioGroup, Search, Tabbar, TabbarItem, Tag].forEach((component) => app.use(component));
 
 window.addEventListener('auth:expired', async () => {
   const auth = useAuthStore(pinia);

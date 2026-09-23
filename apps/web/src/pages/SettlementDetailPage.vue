@@ -10,6 +10,24 @@ const settlementId = computed(() => String(route.params.settlementId))
 const detail = ref<SettlementDetail | null>(null)
 const loading = ref(true)
 const error = ref('')
+const netReceipts = computed(() => detail.value ? formatMoney(moneyToCents(detail.value.saleTotal) - moneyToCents(detail.value.serviceFeeTotal)) : '0.00')
+function moneyToCents(value: string | null | undefined) {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? Math.round(amount * 100) : 0
+}
+function formatMoney(cents: number) {
+  return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`
+}
+function settlementFormula(member: { profitAmount: string; costRecovery: string; expensesPaid: string; salesReceived: string }) {
+  const items = [
+    { label: '利润分成', cents: moneyToCents(member.profitAmount) },
+    { label: '成本返还', cents: moneyToCents(member.costRecovery) },
+    { label: '其他费用垫付', cents: moneyToCents(member.expensesPaid) },
+    { label: '已收销售款', cents: -moneyToCents(member.salesReceived) }
+  ].filter((item) => item.cents !== 0)
+  if (!items.length) return '本次无金额变动'
+  return items.map((item, index) => `${index ? item.cents < 0 ? '− ' : '+ ' : item.cents < 0 ? '− ' : ''}${item.label} ¥${formatMoney(Math.abs(item.cents))}`).join(' ')
+}
 async function load() {
   loading.value = true
   error.value = ''
@@ -44,20 +62,21 @@ onMounted(load)
           <small>商品成本</small><strong>¥{{ detail.costTotal }}</strong>
         </div>
         <div>
+          <small>净收款</small><strong data-ai-id="settlement-detail-net-receipts">¥{{ netReceipts }}</strong>
+        </div>
+        <div>
           <small>本次{{ detail.isLoss ? '亏损' : '利润' }}</small
           ><strong :class="{ loss: detail.isLoss }">¥{{ detail.profitTotal }}</strong>
         </div>
       </div>
       <h2>参与人结果</h2>
-      <section class="list">
-        <article v-for="member in detail.members" :key="member.userId" class="row">
-          <div>
-            <strong>{{ member.username }}</strong
-            ><small>承担成本 ¥{{ member.costShare }} · 采购付款 ¥{{ member.purchasesPaid }} · 利润 {{ member.profitPercentage }}%（¥{{ member.profitAmount }}）</small>
+      <section class="list" data-ai-id="settlement-detail-member-results">
+        <article v-for="member in detail.members" :key="member.userId" class="member-result" :data-ai-id="`settlement-detail-member-result-${member.userId}`">
+          <div class="member-result-main">
+            <div><strong>{{ member.username }}</strong><small class="result-formula">{{ settlementFormula(member) }}</small></div>
+            <b :class="member.direction">{{ member.direction === 'receivable' ? `应收 ¥${member.net}` : member.direction === 'payable' ? `应付 ¥${member.net.replace('-', '')}` : '已结清' }}</b>
           </div>
-          <b :class="member.direction">{{
-            member.direction === 'receivable' ? `应收 ¥${member.net}` : member.direction === 'payable' ? `应付 ¥${member.net.replace('-', '')}` : '已结清'
-          }}</b>
+          <details class="member-result-details" :data-ai-id="`settlement-detail-member-details-${member.userId}`"><summary>查看计算明细</summary><div class="calculation-detail"><span>承担商品成本 ¥{{ member.costShare }}</span><span>采购付款 ¥{{ member.purchasesPaid }}</span></div></details>
         </article>
       </section>
       <h2>转账建议</h2>
@@ -85,7 +104,7 @@ onMounted(load)
       <section class="list">
         <div v-for="sale in detail.sales" :key="sale.id" class="row">
           <div>
-            <strong>{{ sale.productName }} · {{ sale.quantity }} 件</strong><small>{{ formatDateTime(sale.occurredAt) }} · {{ sale.sellerUsername }} 收款</small>
+            <strong>{{ sale.productGroupName && sale.variantName ? `${sale.productGroupName} · ${sale.variantName}` : sale.productName }} · {{ sale.quantity }} 件</strong><small>{{ formatDateTime(sale.occurredAt) }} · {{ sale.sellerUsername }} 收款</small>
           </div>
           <b>¥{{ sale.totalPrice }}</b>
         </div>
@@ -178,6 +197,69 @@ onMounted(load)
 .row b {
   white-space: nowrap;
   font-size: 13px;
+}
+.member-result {
+  border-bottom: 1px solid #e4e8f0;
+}
+.member-result:last-child {
+  border: 0;
+}
+.member-result-main {
+  display: flex;
+  min-height: 66px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.member-result-main > div {
+  min-width: 0;
+  flex: 1;
+}
+.member-result-main strong,
+.member-result-main small {
+  display: block;
+}
+.member-result-main small {
+  margin-top: 5px;
+  color: #71809a;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.member-result-main b {
+  white-space: nowrap;
+  font-size: 14px;
+}
+.result-formula {
+  overflow-wrap: anywhere;
+}
+.member-result-details {
+  border-top: 0;
+}
+.member-result-details summary {
+  position: relative;
+  min-height: 44px;
+  padding: 0 12px;
+  cursor: pointer;
+  color: #536078;
+  font-size: 13px;
+  line-height: 44px;
+}
+.member-result-details summary::before {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  width: 48px;
+  border-top: 1px solid #e4e8f0;
+  content: '';
+}
+.calculation-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 12px 12px;
+  color: #71809a;
+  font-size: 12px;
+  line-height: 1.45;
 }
 .loss,
 .payable {

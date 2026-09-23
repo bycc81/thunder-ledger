@@ -52,7 +52,11 @@ async function replaceImages(client: PoolClient, productId: string, workspaceId:
   return true;
 }
 
-async function imageUrl(objectKey: string | null | undefined): Promise<string | null> { return objectKey ? createAssetReadUrl(objectKey) : null; }
+async function imageUrl(objectKey: string | null | undefined): Promise<string | null> {
+  if (!objectKey) return null;
+  try { return await createAssetReadUrl(objectKey); }
+  catch { return null; }
+}
 async function presentProduct(row: ProductRow, images: Array<{ assetId: string; position: number; objectKey: string }> = []) {
   return { id: row.id, name: row.name, description: row.description, referencePrice: row.referencePrice, createdAt: row.createdAt, updatedAt: row.updatedAt, firstImage: await imageUrl(row.firstObjectKey), images: await Promise.all(images.map(async (image) => ({ assetId: image.assetId, position: image.position, url: await imageUrl(image.objectKey) }))) };
 }
@@ -65,8 +69,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
     const rows = (await getPool().query(`SELECT p.id,p.name,p.description,p.reference_price::text AS "referencePrice",p.created_at AS "createdAt",p.updated_at AS "updatedAt",cover.object_key AS "firstObjectKey"
       FROM products p LEFT JOIN LATERAL (SELECT a.object_key FROM product_images pi JOIN assets a ON a.id=pi.asset_id AND a.deleted_at IS NULL AND a.status='ready' WHERE pi.product_id=p.id ORDER BY pi.position LIMIT 1) cover ON true
       WHERE p.workspace_id=$1 AND ($2='' OR p.name ILIKE '%' || $2 || '%') ORDER BY p.created_at DESC`, [request.params.workspaceId, query])).rows as ProductRow[];
-    try { return await Promise.all(rows.map((row) => presentProduct(row))); }
-    catch { return reply.code(503).send({ code: 'STORAGE_NOT_CONFIGURED', message: '图片存储尚未配置' }); }
+    return Promise.all(rows.map((row) => presentProduct(row)));
   });
 
   app.get<{ Params: { workspaceId: string; productId: string } }>('/api/workspaces/:workspaceId/products/:productId', async (request, reply) => {
@@ -77,8 +80,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       WHERE p.id=$1 AND p.workspace_id=$2`, [request.params.productId, request.params.workspaceId])).rows[0] as ProductRow | undefined;
     if (!row) return reply.code(404).send({ code: 'NOT_FOUND' });
     const images = (await getPool().query("SELECT pi.asset_id AS \"assetId\",pi.position,a.object_key AS \"objectKey\" FROM product_images pi JOIN assets a ON a.id=pi.asset_id AND a.status='ready' AND a.deleted_at IS NULL WHERE pi.product_id=$1 ORDER BY pi.position", [row.id])).rows as Array<{ assetId: string; position: number; objectKey: string }>;
-    try { return await presentProduct(row, images); }
-    catch { return reply.code(503).send({ code: 'STORAGE_NOT_CONFIGURED', message: '图片存储尚未配置' }); }
+    return presentProduct(row, images);
   });
 
   app.post<{ Params: { workspaceId: string }; Body: ProductInput }>('/api/workspaces/:workspaceId/products', async (request, reply) => {

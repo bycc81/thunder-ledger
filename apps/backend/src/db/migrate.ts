@@ -20,6 +20,8 @@ const legacyMigrationChecksums: Record<string, Set<string>> = {
   '007_sales_expenses': new Set(['f9d0e630962354f0133f1e037aa01f457872336f468a520e571110b3882dacca']),
   '008_listing_url_optional': new Set(['894b7310ddd195b92fa39abeda7fb8dd5e752c2cc1878b6c11dc4e32a8174f45']),
   '009_account_session_version': new Set(['184001522e5b67e2fd947d619310e6fb633d24fdceec269c6ab0c003815dd4fb']),
+  // 019 曾在本地开发数据库执行过早期快照列版本；保留该校验值，后续列由 020 补齐。
+  '019_business_name_snapshots': new Set(['9054f4a54486eb82f3550712f077094347f1710793167762dcb19d186bbb8ab5']),
 };
 
 function normalizeMigrationSql(sql: string): string {

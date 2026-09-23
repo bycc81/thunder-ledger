@@ -3,6 +3,13 @@
   --van-success-color: #16794c;
   --van-danger-color: #b42318;
   --van-background: #f5f7fb;
+  /* Vant 按钮规格：紧凑 36、次级 40、主/确认 44。 */
+  --tl-button-compact-height: 36px;
+  --tl-button-secondary-height: 40px;
+  --tl-button-primary-height: 44px;
+  --tl-button-confirm-height: 44px;
+  --van-button-default-height: var(--tl-button-primary-height);
+  --van-button-small-height: var(--tl-button-compact-height);
   color: #172033;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #e9edf5;
@@ -12,6 +19,17 @@
 html, body, #app { min-height: 100%; max-width:100%; margin: 0; overflow-x:hidden; }
 body { min-width: 320px; background: #e9edf5; }
 button, input { font: inherit; }
+
+/*
+ * 尺寸仅由这里统一控制：Vant 的 small 即紧凑操作，普通按钮即主操作。
+ * 页面需要 40px 次级操作时使用 tl-button--secondary，不得在页面样式中设置按钮高度。
+ */
+.van-button--normal,
+.tl-button--primary,
+.tl-button--confirm { height: var(--tl-button-primary-height) !important; min-height: var(--tl-button-primary-height) !important; }
+.van-button--small,
+.tl-button--compact { height: var(--tl-button-compact-height) !important; min-height: var(--tl-button-compact-height) !important; }
+.tl-button--secondary { height: var(--tl-button-secondary-height) !important; min-height: var(--tl-button-secondary-height) !important; }
 
 /* 移动端空状态用于提示而非占满内容区，统一采用紧凑规格。 */
 .van-empty { padding: 16px 12px; }
