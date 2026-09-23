@@ -21,7 +21,7 @@ Copy-Item .env.example .env
 - `GET /api/readyz` 在数据库可用时返回 200。
 - 浏览器可以打开后台登录页。
 
-Docker Compose 前端入口默认运行在 `http://localhost:51882`；开发前端单独运行 Vite 时使用 `http://localhost:5174`，本地后端运行在 `http://localhost:3000`。仓库根目录 `.env` 中的 `DATABASE_URL` 用于本地后端连接 `127.0.0.1:5432`，`DATABASE_URL_DOCKER` 仅供 Compose 内的 API 和迁移容器使用。`apps/backend` 的 `npm run dev` 会自动读取根目录 `.env`。
+Docker Compose 前端入口默认运行在 `http://localhost:51882`；开发前端单独运行 Vite 时使用 `http://localhost:5665`，本地后端运行在 `http://localhost:3000`。仓库根目录 `.env` 中的 `DATABASE_URL` 用于本地后端连接 `127.0.0.1:5432`，`DATABASE_URL_DOCKER` 仅供 Compose 内的 API 和迁移容器使用。`apps/backend` 的 `npm run dev` 会自动读取根目录 `.env`。
 
 停止服务使用 `.\scripts\stop-local.ps1`（内部执行 `docker compose down`）。除非用户明确授权，不执行 `docker compose down -v`，避免删除数据库数据卷。
 

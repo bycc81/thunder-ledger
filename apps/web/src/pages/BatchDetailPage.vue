@@ -26,6 +26,8 @@ const participantRole = ref<Exclude<BatchRole, 'owner'>>('editor');
 const removingId = ref('');
 const pendingRemoval = ref<BatchMember | null>(null);
 const showRemovalConfirm = ref(false);
+const deletingBatch = ref(false);
+const showBatchDeleteConfirm = ref(false);
 
 const canManage = computed(() => Boolean(batch.value && (batch.value.role === 'owner' || store.canManageWorkspace)));
 const canEditInventory = computed(() => Boolean(batch.value && (batch.value.role === 'owner' || batch.value.role === 'editor' || store.canManageWorkspace)));
@@ -40,9 +42,10 @@ const participantRoleOptions: Array<{ text: string; value: Exclude<BatchRole, 'o
 async function load() {
   loading.value = true; error.value = '';
   try {
+    if (!store.workspaces.length) await store.load();
     const id = String(route.params.id);
     const [batchResponse, membersResponse] = await Promise.all([api.get<Batch & { created_by?: string }>(`/batches/${id}`), api.get<BatchMember[]>(`/batches/${id}/members`)]);
-    batch.value = { ...batchResponse.data, role: store.batches.find((item) => item.id === id)?.role ?? 'viewer' };
+    batch.value = batchResponse.data;
     members.value = membersResponse.data;
   } catch { error.value = '批次详情加载失败，请重试'; }
   finally { loading.value = false; }
@@ -97,6 +100,18 @@ async function removeParticipant() {
   catch { showFailToast('参与人移除失败'); }
   finally { removingId.value = ''; }
 }
+async function deleteBatch() {
+  if (!batch.value || !canManage.value || deletingBatch.value) return;
+  deletingBatch.value = true;
+  try {
+    await api.delete(`/batches/${batch.value.id}`);
+    await store.loadScoped();
+    showBatchDeleteConfirm.value = false;
+    showSuccessToast('批次已删除');
+    await router.replace('/batches');
+  } catch { showFailToast('批次删除失败'); }
+  finally { deletingBatch.value = false; }
+}
 onMounted(load);
 </script>
 
@@ -117,8 +132,9 @@ onMounted(load);
       <section class="detail-section" data-ai-id="batch-settlement-section"><div class="section-head"><h2>结算</h2><span v-if="!canManage" class="readonly-label">只读</span></div><van-cell title="协作台账与结算" label="创建阶段账单并查看应收应付" is-link clickable data-ai-id="batch-settlement-entry" @click="router.push(`/batches/${batch.id}/settlements`)" /></section>
       <section class="detail-section" data-ai-id="batch-member-list"><div class="section-head"><h2>批次成员</h2><van-button v-if="canManage" class="compact-button" type="primary" size="small" data-ai-id="participant-add" @click="showParticipant = true">添加参与人</van-button></div>
         <van-empty v-if="!members.length" description="暂无参与人" data-ai-id="batch-member-empty" />
-        <div v-else class="member-list"><div v-for="member in members" :key="member.id" class="member-item" :data-ai-id="`batch-member-item-${member.id}`"><div class="member-main"><strong>{{ member.username }}</strong><span><van-tag :type="member.role === 'owner' ? 'primary' : member.role === 'editor' ? 'warning' : 'default'">{{ roleText(member.role) }}</van-tag><small>加入时间 {{ formatDate(member.created_at) }}</small></span></div><div v-if="member.role !== 'owner' && canManage" class="member-actions"><van-popover placement="top-end" :actions="[{ text: '编辑者' }, { text: '查看者' }]" @select="(action) => updateRole(member, action.text === '编辑者' ? 'editor' : 'viewer')"><van-button class="member-action" size="small" plain :data-ai-id="`batch-member-role-${member.id}`">角色</van-button></van-popover><van-button class="member-action danger-action" size="small" plain type="danger" :loading="removingId === member.id" :data-ai-id="`batch-member-remove-${member.id}`" @click="requestRemoveParticipant(member)">移除</van-button></div></div></div>
+        <div v-else class="member-list"><div v-for="member in members" :key="member.id" class="member-item" :data-ai-id="`batch-member-item-${member.id}`"><div class="member-main"><strong>{{ member.username }}</strong><span><van-tag :type="member.role === 'owner' ? 'primary' : member.role === 'editor' ? 'warning' : 'default'">{{ roleText(member.role) }}</van-tag><small>加入时间 {{ formatDate(member.created_at) }}</small></span></div><div v-if="member.role !== 'owner' && canManage" class="member-actions"><van-popover placement="top-end" :actions="[{ text: '编辑者' }, { text: '查看者' }]" @select="(action) => updateRole(member, action.text === '编辑者' ? 'editor' : 'viewer')"><template #reference><van-button class="member-action" size="small" plain :data-ai-id="`batch-member-role-${member.id}`">角色</van-button></template></van-popover><van-button class="member-action danger-action" size="small" plain type="danger" :loading="removingId === member.id" :data-ai-id="`batch-member-remove-${member.id}`" @click="requestRemoveParticipant(member)">移除</van-button></div></div></div>
       </section>
+      <section v-if="canManage" class="detail-section batch-danger-zone" data-ai-id="batch-danger-zone"><h2>危险操作</h2><van-button block plain type="danger" :loading="deletingBatch" data-ai-id="batch-detail-delete" @click="showBatchDeleteConfirm = true">删除批次</van-button></section>
     </main>
   </div>
 
@@ -132,6 +148,7 @@ onMounted(load);
   <van-popup v-model:show="showMemberPicker" position="bottom" round data-ai-id="participant-member-picker"><van-picker title="选择成员" :columns="memberOptions" @confirm="chooseMember" @cancel="showMemberPicker = false" /></van-popup>
   <van-popup v-model:show="showParticipantRolePicker" position="bottom" round data-ai-id="participant-role-picker"><van-picker title="选择批次角色" :columns="participantRoleOptions" @confirm="chooseParticipantRole" @cancel="showParticipantRolePicker = false" /></van-popup>
   <DangerConfirmDialog v-model:show="showRemovalConfirm" title="移除参与人" :message="pendingRemoval ? `移除 ${pendingRemoval.username} 后将不能访问此批次。` : ''" confirm-text="移除" ai-id="participant-remove-confirm" :loading="Boolean(removingId)" @confirm="removeParticipant" />
+  <DangerConfirmDialog v-model:show="showBatchDeleteConfirm" title="删除批次" :message="batch ? `确定删除“${batch.name}”吗？删除后，该批次将不再显示在当前工作区；已有记录会保留，无法继续操作。` : ''" confirm-text="删除" ai-id="batch-detail-delete-confirm" :loading="deletingBatch" @confirm="deleteBatch" />
   <AppBottomNavigation />
 </template>
 
@@ -164,5 +181,6 @@ onMounted(load);
 .member-actions { display:flex; flex-shrink:0; gap:4px; }
 .member-action { min-height:var(--tl-button-compact-height); padding:0 7px; font-size:12px; }
 .danger-action { color:#b42318 !important; }
+.batch-danger-zone { margin-top:32px; }.batch-danger-zone h2 { margin-bottom:10px; }
 .detail-state { display:grid; min-height:60vh; place-items:center; }
 </style>

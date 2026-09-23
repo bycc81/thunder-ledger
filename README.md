@@ -18,7 +18,7 @@ Copy-Item .env.example .env
 .\scripts\start-local.ps1
 ```
 
-Docker Compose 启动后访问 `http://localhost:51882`；如果单独运行 Vite 开发服务器，访问 `http://localhost:5174`。
+Docker Compose 启动后访问 `http://localhost:51882`；如果单独运行 Vite 开发服务器，访问 `http://localhost:5665`。
 
 停止本地服务（保留数据库数据卷）：
 

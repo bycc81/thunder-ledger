@@ -1,7 +1,18 @@
-{
-  "AllowedOrigins": ["https://<project>.pages.dev", "http://localhost:5174"],
-  "AllowedMethods": ["PUT", "GET", "HEAD"],
-  "AllowedHeaders": ["Content-Type"],
-  "ExposeHeaders": ["ETag"],
-  "MaxAgeSeconds": 600
-}
+[
+  {
+    "AllowedOrigins": [
+      "https://thunder-ledger.pages.dev",
+      "http://localhost:5665",
+      "http://192.168.161.135:5665"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "PUT",
+      "HEAD"
+    ],
+    "AllowedHeaders": [
+      "*"
+    ],
+    "MaxAgeSeconds": 3600
+  }
+]

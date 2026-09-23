@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { showFailToast, showSuccessToast } from 'vant';
 import { useRouter } from 'vue-router';
 import { api } from '../api';
 import MobileShell from '../layouts/MobileShell.vue';
 import DangerConfirmDialog from '../components/DangerConfirmDialog.vue';
 import WorkspacePicker from '../components/WorkspacePicker.vue';
+import { useAuthStore } from '../stores/auth';
 import { useWorkspaceStore } from '../stores/workspace';
 
 type WorkspaceManagement = { id: string; name: string; kind: 'personal' | 'collaborative'; isCreator: boolean; batchCount: number };
 type Page = 'overview' | 'products' | 'batches' | 'members' | 'audit' | 'profile';
 const router = useRouter();
+const auth = useAuthStore();
 const store = useWorkspaceStore();
 const management = ref<WorkspaceManagement | null>(null);
 const name = ref('');
@@ -21,6 +23,11 @@ const showWorkspace = ref(false);
 const showWorkspaceCreate = ref(false);
 const showLeaveConfirm = ref(false);
 const showDeleteConfirm = ref(false);
+const identityText = computed(() => {
+  if (auth.isSystemAdmin) return management.value?.isCreator ? '系统管理员 · 创建人' : '系统管理员';
+  return management.value?.isCreator ? '创建人' : '成员';
+});
+const canLeaveWorkspace = computed(() => Boolean(management.value && !management.value.isCreator && !auth.isSystemAdmin));
 
 function navigate(page: Page) { void router.push(page === 'overview' ? '/workspace' : `/${page}`); }
 function apiMessage(requestError: unknown, fallback: string) { return (requestError as { response?: { data?: { message?: string } } }).response?.data?.message || fallback; }
@@ -87,15 +94,15 @@ onMounted(load);
       <div v-if="loading" class="state-card" data-ai-id="workspace-management-loading"><van-loading>正在加载工作区…</van-loading></div>
       <van-empty v-else-if="error" :description="error" data-ai-id="workspace-management-error"><van-button type="primary" size="small" data-ai-id="workspace-management-retry" @click="load">重试</van-button></van-empty>
       <template v-else-if="management">
-        <section class="management-section" data-ai-id="workspace-management-info"><h2>基本信息</h2><div class="management-list"><van-field v-model="name" label="工作区名称" :readonly="!management.isCreator" :disabled="saving" data-ai-id="workspace-management-name" /><div class="management-row"><span>我的身份</span><strong>{{ management.isCreator ? '创建人' : '成员' }}</strong></div></div><van-button v-if="management.isCreator" block plain type="primary" :loading="saving" data-ai-id="workspace-management-rename" @click="saveName">保存名称</van-button></section>
-        <p v-if="management.isCreator && management.batchCount > 0" class="delete-blocked" data-ai-id="workspace-delete-blocked">已有 {{ management.batchCount }} 个批次，暂时不能删除此工作区。</p>
-        <section class="management-action"><van-button v-if="management.isCreator" block plain type="danger" :disabled="management.batchCount > 0" data-ai-id="workspace-delete" @click="showDeleteConfirm = true">删除工作区</van-button><van-button v-else block plain type="danger" data-ai-id="workspace-leave" @click="showLeaveConfirm = true">退出工作区</van-button></section>
+        <section class="management-section" data-ai-id="workspace-management-info"><h2>基本信息</h2><div class="management-list"><van-field v-model="name" label="工作区名称" :readonly="!management.isCreator" :disabled="saving" data-ai-id="workspace-management-name" /><div class="management-row"><span>我的身份</span><strong>{{ identityText }}</strong></div></div><van-button v-if="management.isCreator" block plain type="primary" :loading="saving" data-ai-id="workspace-management-rename" @click="saveName">保存名称</van-button></section>
+        <p v-if="auth.isSystemAdmin && !management.isCreator" class="system-admin-notice" data-ai-id="workspace-system-admin-notice">系统管理员可访问所有工作区，无需加入或退出。</p>
+        <section v-if="management.isCreator || canLeaveWorkspace" class="management-action"><van-button v-if="management.isCreator" block plain type="danger" data-ai-id="workspace-delete" @click="showDeleteConfirm = true">删除工作区</van-button><van-button v-else-if="canLeaveWorkspace" block plain type="danger" data-ai-id="workspace-leave" @click="showLeaveConfirm = true">退出工作区</van-button></section>
       </template>
     </section>
   </MobileShell>
   <WorkspacePicker v-model:show="showWorkspace" v-model:show-create="showWorkspaceCreate" @selected="load" />
   <DangerConfirmDialog v-model:show="showLeaveConfirm" title="退出工作区" :message="management ? `退出“${management.name}”后，你将不能进入该工作区，也看不到其中的批次；历史记录不会删除。` : ''" confirm-text="确认退出" ai-id="workspace-leave-confirm" :loading="saving" @confirm="leaveWorkspace" />
-  <DangerConfirmDialog v-model:show="showDeleteConfirm" title="删除工作区" :message="management ? `删除“${management.name}”后，该工作区将不再显示；历史记录不会删除。` : ''" confirm-text="确认删除" ai-id="workspace-delete-confirm" :loading="saving" @confirm="deleteWorkspace" />
+  <DangerConfirmDialog v-model:show="showDeleteConfirm" title="删除工作区" :message="management ? `确定删除“${management.name}”吗？删除后，该工作区将不再显示；其中已有记录会保留，无法继续操作。` : ''" confirm-text="确认删除" ai-id="workspace-delete-confirm" :loading="saving" @confirm="deleteWorkspace" />
 </template>
 
 <style scoped>
@@ -111,6 +118,7 @@ onMounted(load);
 .management-section :deep(.van-field__label) { color:#8993a7; font-size:12px; }.management-section :deep(.van-field__control) { color:#172033; font-size:14px; font-weight:700; text-align:right; }
 .management-section :deep(.van-button),.management-action :deep(.van-button) { min-height:44px; background:#fff; }
 .delete-blocked { margin:0 0 8px; padding:10px 12px; border-radius:9px; background:#f1f3f6; color:#68717d; font-size:12px; line-height:1.5; }
+.system-admin-notice { margin:0; padding:10px 12px; border-radius:9px; background:#edf3ff; color:#3657c8; font-size:12px; line-height:1.5; }
 .management-action { margin-top:8px; }.management-action :deep(.van-button--disabled) { border-color:#e4e8f0; color:#b3bac7; opacity:1; }
 .state-card { display:grid; min-height:180px; place-items:center; border-radius:10px; background:#fff; }
 </style>
