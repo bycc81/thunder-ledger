@@ -158,7 +158,7 @@ export async function registerAccessRoutes(app: FastifyInstance): Promise<void> 
 
   app.get<{ Params: { id: string } }>('/api/workspaces/:id/management', async (request, reply) => {
     const r = request as Req; if (!(await auth(r, reply))) return;
-    const workspace = (await getPool().query(`SELECT w.id,w.name,w.kind,(w.created_by=$2) AS "isCreator",(SELECT COUNT(*)::int FROM collaboration_batches b WHERE b.workspace_id=w.id) AS "batchCount" FROM workspaces w WHERE w.id=$1 AND w.deleted_at IS NULL AND ($3::boolean OR EXISTS (SELECT 1 FROM workspace_members wm WHERE wm.workspace_id=w.id AND wm.user_id=$2))`, [request.params.id, r.access!.id, r.access!.superAdmin])).rows[0];
+    const workspace = (await getPool().query(`SELECT w.id,w.name,w.kind,(w.created_by=$2) AS "isCreator",(SELECT COUNT(*)::int FROM collaboration_batches b WHERE b.workspace_id=w.id AND b.deleted_at IS NULL) AS "batchCount" FROM workspaces w WHERE w.id=$1 AND w.deleted_at IS NULL AND ($3::boolean OR EXISTS (SELECT 1 FROM workspace_members wm WHERE wm.workspace_id=w.id AND wm.user_id=$2))`, [request.params.id, r.access!.id, r.access!.superAdmin])).rows[0];
     if (!workspace) return reply.code(404).send({ code: 'WORKSPACE_NOT_FOUND' });
     return workspace;
   });
@@ -182,12 +182,12 @@ export async function registerAccessRoutes(app: FastifyInstance): Promise<void> 
   });
   app.delete<{ Params: { id: string } }>('/api/workspaces/:id', async (request, reply) => {
     const r = request as Req; if (!(await auth(r, reply))) return;
-    const result = await getPool().query(`UPDATE workspaces w SET deleted_at=now() WHERE w.id=$1 AND w.deleted_at IS NULL AND w.created_by=$2 AND NOT EXISTS (SELECT 1 FROM collaboration_batches b WHERE b.workspace_id=w.id) RETURNING w.id`, [request.params.id, r.access!.id]);
+    const result = await getPool().query('UPDATE workspaces SET deleted_at=now() WHERE id=$1 AND deleted_at IS NULL AND created_by=$2 RETURNING id', [request.params.id, r.access!.id]);
     if (!result.rowCount) {
       const workspace = (await getPool().query('SELECT created_by FROM workspaces WHERE id=$1 AND deleted_at IS NULL', [request.params.id])).rows[0] as { created_by: string } | undefined;
       if (!workspace) return reply.code(404).send({ code: 'WORKSPACE_NOT_FOUND' });
       if (workspace.created_by !== r.access!.id) return reply.code(403).send({ code: 'WORKSPACE_CREATOR_REQUIRED', message: '只有创建人可以删除工作区' });
-      return reply.code(409).send({ code: 'WORKSPACE_HAS_BATCHES', message: '该工作区已有批次，暂时不能删除' });
+      return reply.code(403).send({ code: 'WORKSPACE_CREATOR_REQUIRED', message: '只有创建人可以删除工作区' });
     }
     await audit(request.params.id, r.access!.id, 'workspace.delete', 'workspace', request.params.id);
     return { ok: true };
@@ -214,7 +214,7 @@ export async function registerAccessRoutes(app: FastifyInstance): Promise<void> 
     const filter=workspaceId?' AND b.workspace_id=$2':'';
     return (await getPool().query(`SELECT DISTINCT b.id,b.workspace_id,b.name,b.status,b.created_at,CASE WHEN wm.role IN ('owner','admin') THEN 'owner' ELSE m.role END AS role FROM collaboration_batches b JOIN workspaces w ON w.id=b.workspace_id AND w.deleted_at IS NULL JOIN workspace_members wm ON wm.workspace_id=b.workspace_id AND wm.user_id=$1 LEFT JOIN batch_members m ON m.batch_id=b.id AND m.user_id=$1 WHERE b.deleted_at IS NULL${filter} AND (wm.role IN ('owner','admin') OR m.user_id IS NOT NULL) ORDER BY b.created_at DESC`,params)).rows;
   });
-  app.get<{ Params:{id:string} }>('/api/batches/:id', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canReadBatch(context))return reply.code(404).send({code:'NOT_FOUND'});return (await getPool().query('SELECT id,workspace_id,name,status,created_by,created_at FROM collaboration_batches WHERE id=$1 AND deleted_at IS NULL',[request.params.id])).rows[0];});
+  app.get<{ Params:{id:string} }>('/api/batches/:id', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canReadBatch(context))return reply.code(404).send({code:'NOT_FOUND'});const batch=(await getPool().query('SELECT id,workspace_id,name,status,created_by,created_at FROM collaboration_batches WHERE id=$1 AND deleted_at IS NULL',[request.params.id])).rows[0];return {...batch,role:context!.batchRole};});
   app.get<{ Params:{id:string} }>('/api/batches/:id/members', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canReadBatch(context))return reply.code(404).send({code:'NOT_FOUND'});return (await getPool().query('SELECT u.id,u.username,m.role,m.created_at FROM batch_members m JOIN users u ON u.id=m.user_id WHERE m.batch_id=$1 ORDER BY m.created_at',[request.params.id])).rows;});
   app.patch<{ Params:{id:string}; Body:{name?:string} }>('/api/batches/:id', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canManageBatch(context))return reply.code(403).send({code:'FORBIDDEN'});const name=request.body?.name?.trim();if(!name)return reply.code(400).send({code:'INVALID_BATCH'});await getPool().query('UPDATE collaboration_batches SET name=$2 WHERE id=$1',[request.params.id,name]);await audit(context!.workspaceId,r.access!.id,'batch.update','batch',request.params.id);return {ok:true};});
   app.delete<{ Params:{id:string} }>('/api/batches/:id', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canManageBatch(context))return reply.code(403).send({code:'FORBIDDEN'});await getPool().query('UPDATE collaboration_batches SET deleted_at=now() WHERE id=$1 AND deleted_at IS NULL',[request.params.id]);await audit(context!.workspaceId,r.access!.id,'batch.delete','batch',request.params.id);return {ok:true};});

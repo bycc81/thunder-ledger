@@ -6,7 +6,7 @@ import { getPool } from './db/client.js';
 
 type Role = 'owner' | 'admin' | 'editor' | 'viewer';
 type RequestOptions = {
-  method: 'GET' | 'POST' | 'PATCH';
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   url: string;
   payload?: Record<string, unknown>;
 };
@@ -187,6 +187,31 @@ try {
       url: `/api/batches/${batchId}/settlements/draft`,
     }, canManage ? 200 : 403);
   }
+
+  await expectStatus('editor cannot delete batch', 'editor', { method: 'DELETE', url: `/api/batches/${batchId}` }, 403);
+  await expectStatus('viewer cannot delete batch', 'viewer', { method: 'DELETE', url: `/api/batches/${batchId}` }, 403);
+  const adminBatchDetail = await expectStatus('admin sees batch detail as owner', 'admin', { method: 'GET', url: `/api/batches/${batchId}` }, 200);
+  assert.equal((adminBatchDetail.json() as { role: string }).role, 'owner');
+  await expectStatus('owner deletes batch with business records', 'owner', { method: 'DELETE', url: `/api/batches/${batchId}` }, 200);
+  assert.equal((await pool.query('SELECT deleted_at IS NOT NULL AS deleted FROM collaboration_batches WHERE id=$1', [batchId])).rows[0]?.deleted, true);
+
+  const adminBatchId = randomUUID();
+  await pool.query('INSERT INTO collaboration_batches(id,workspace_id,name,created_by) VALUES($1,$2,$3,$4)', [adminBatchId, workspaceId, '管理员删除批次', userIds.owner]);
+  await pool.query('INSERT INTO batch_members(batch_id,user_id,role) VALUES($1,$2,$3)', [adminBatchId, userIds.owner, 'owner']);
+  await expectStatus('admin deletes workspace batch', 'admin', { method: 'DELETE', url: `/api/batches/${adminBatchId}` }, 200);
+  assert.equal((await pool.query('SELECT deleted_at IS NOT NULL AS deleted FROM collaboration_batches WHERE id=$1', [adminBatchId])).rows[0]?.deleted, true);
+
+  const deleteWorkspaceId = randomUUID();
+  const deleteWorkspaceBatchId = randomUUID();
+  await pool.query('INSERT INTO workspaces(id,name,kind,created_by) VALUES($1,$2,$3,$4)', [deleteWorkspaceId, '删除回归工作区', 'collaborative', userIds.owner]);
+  await pool.query('INSERT INTO workspace_members(workspace_id,user_id,role) VALUES($1,$2,$3)', [deleteWorkspaceId, userIds.owner, 'owner']);
+  await pool.query('INSERT INTO collaboration_batches(id,workspace_id,name,created_by) VALUES($1,$2,$3,$4)', [deleteWorkspaceBatchId, deleteWorkspaceId, '已删除批次', userIds.owner]);
+  await pool.query('INSERT INTO batch_members(batch_id,user_id,role) VALUES($1,$2,$3)', [deleteWorkspaceBatchId, userIds.owner, 'owner']);
+  const management = await expectStatus('active batches are visible in workspace management', 'owner', { method: 'GET', url: `/api/workspaces/${deleteWorkspaceId}/management` }, 200);
+  assert.equal((management.json() as { batchCount: number }).batchCount, 1);
+  await expectStatus('owner deletes workspace with active batches', 'owner', { method: 'DELETE', url: `/api/workspaces/${deleteWorkspaceId}` }, 200);
+  assert.equal((await pool.query('SELECT deleted_at IS NOT NULL AS deleted FROM workspaces WHERE id=$1', [deleteWorkspaceId])).rows[0]?.deleted, true);
+  assert.equal((await pool.query('SELECT deleted_at IS NULL AS active FROM collaboration_batches WHERE id=$1', [deleteWorkspaceBatchId])).rows[0]?.active, true);
 
   const unauthorized = await app.inject({ method: 'GET', url: `/api/workspaces/${workspaceId}/products` });
   assert.equal(unauthorized.statusCode, 401);

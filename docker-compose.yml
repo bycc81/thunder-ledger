@@ -35,7 +35,7 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:5174,http://localhost:51882}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:5665,http://localhost:51882}
       R2_ENDPOINT: ${R2_ENDPOINT:-}
       R2_BUCKET: ${R2_BUCKET:-}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
