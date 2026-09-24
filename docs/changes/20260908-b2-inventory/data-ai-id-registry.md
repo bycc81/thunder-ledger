@@ -23,6 +23,7 @@
 | `inventory-summary` | 区域 | 可售数量与成本摘要 |
 | `inventory-purchase-list` | 区域 | 采购明细列表 |
 | `inventory-purchase-item-{purchaseId}` | 列表项 | 指定采购明细 |
+| `inventory-purchase-source-{purchaseId}` | 控件 | 打开指定采购明细的来源链接；链接为空时不渲染 |
 | `inventory-purchase-edit-{purchaseId}` | 控件 | 编辑指定采购明细 |
 | `inventory-writeoff-list` | 区域 | 商品损坏或丢失的历史记录 |
 | `inventory-writeoff-create` | 危险操作 | 从更多操作中登记商品损坏或丢失 |

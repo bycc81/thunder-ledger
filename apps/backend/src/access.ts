@@ -225,7 +225,10 @@ export async function registerAccessRoutes(app: FastifyInstance): Promise<void> 
   app.get<{ Querystring: { workspaceId?: string; action?: string; actorUserId?: string; from?: string; to?: string; page?: string; pageSize?: string } }>('/api/audit', async(request,reply)=>{
     const r=request as Req;if(!(await auth(r,reply)))return;
     const query=request.query; const ws=query.workspaceId;
-    const workspaceRole=ws?await role(r.access?.id ?? '',ws):null;
+    if(!ws||!UUID_RE.test(ws))return reply.code(403).send({code:'FORBIDDEN'});
+    const workspace=(await getPool().query('SELECT 1 FROM workspaces WHERE id=$1 AND deleted_at IS NULL',[ws])).rows[0];
+    if(!workspace)return reply.code(403).send({code:'FORBIDDEN'});
+    const workspaceRole=await accessRole(r,ws);
     if(!ws||!canManage(workspaceRole))return reply.code(403).send({code:'FORBIDDEN'});
     const page=Math.max(1,Math.min(100000,Number.parseInt(query.page??'1',10)||1));
     const pageSize=Math.max(1,Math.min(100,Number.parseInt(query.pageSize??'50',10)||50));

@@ -26,9 +26,11 @@ const app = await buildApp();
 const pool = getPool();
 const workspaceId = randomUUID();
 const batchId = randomUUID();
+const systemAdminId = randomUUID();
 const userIds = Object.fromEntries(roles.map((role) => [role, randomUUID()])) as Record<Role, string>;
 const usernames = Object.fromEntries(roles.map((role) => [role, `role-${role}-${randomUUID().slice(0, 8)}`])) as Record<Role, string>;
 const cookies = {} as Record<Role, string>;
+let systemAdminCookie = '';
 
 function writeRequest(method: RequestOptions['method']): boolean {
   return method !== 'GET';
@@ -50,7 +52,23 @@ async function expectStatus(label: string, role: Role, options: RequestOptions, 
   return response;
 }
 
+async function expectSystemAdminStatus(label: string, options: RequestOptions, expected: number) {
+  const response = await app.inject({
+    ...options,
+    headers: {
+      cookie: systemAdminCookie,
+      ...(writeRequest(options.method) ? { origin: 'http://role-test.local' } : {}),
+    },
+  });
+  assert.equal(response.statusCode, expected, `${label} (system admin) expected ${expected}, received ${response.statusCode}: ${response.body}`);
+  return response;
+}
+
 try {
+  await pool.query(
+    'INSERT INTO users(id,username,password_hash,status,session_version) VALUES($1,$2,$3,$4,$5)',
+    [systemAdminId, process.env.ADMIN_USERNAME, 'role-regression-password-hash', 'active', 1],
+  );
   for (const role of roles) {
     await pool.query(
       'INSERT INTO users(id,username,password_hash,status,session_version) VALUES($1,$2,$3,$4,$5)',
@@ -71,6 +89,8 @@ try {
     const token = await app.jwt.sign({ sub: userIds[role], username: usernames[role], sessionVersion: 1 }, { expiresIn: '1h' });
     cookies[role] = `${SESSION_COOKIE_NAME}=${token}`;
   }
+  const systemAdminToken = await app.jwt.sign({ sub: systemAdminId, username: process.env.ADMIN_USERNAME, sessionVersion: 1 }, { expiresIn: '1h' });
+  systemAdminCookie = `${SESSION_COOKIE_NAME}=${systemAdminToken}`;
 
   const productResponse = await expectStatus('create baseline product', 'owner', {
     method: 'POST',
@@ -188,6 +208,24 @@ try {
     }, canManage ? 200 : 403);
   }
 
+  await expectSystemAdminStatus('system admin creates batch in another user workspace', {
+    method: 'POST',
+    url: '/api/batches',
+    payload: { workspaceId, name: '系统管理员跨工作区批次' },
+  }, 200);
+  await expectSystemAdminStatus('system admin reads audit without direct workspace membership', {
+    method: 'GET',
+    url: `/api/audit?${new URLSearchParams({ workspaceId })}`,
+  }, 200);
+  await expectSystemAdminStatus('system admin cannot read audit for an unknown workspace', {
+    method: 'GET',
+    url: `/api/audit?${new URLSearchParams({ workspaceId: randomUUID() })}`,
+  }, 403);
+  await expectSystemAdminStatus('system admin cannot read audit with an invalid workspace ID', {
+    method: 'GET',
+    url: '/api/audit?workspaceId=invalid-workspace-id',
+  }, 403);
+
   await expectStatus('editor cannot delete batch', 'editor', { method: 'DELETE', url: `/api/batches/${batchId}` }, 403);
   await expectStatus('viewer cannot delete batch', 'viewer', { method: 'DELETE', url: `/api/batches/${batchId}` }, 403);
   const adminBatchDetail = await expectStatus('admin sees batch detail as owner', 'admin', { method: 'GET', url: `/api/batches/${batchId}` }, 200);
@@ -212,6 +250,10 @@ try {
   await expectStatus('owner deletes workspace with active batches', 'owner', { method: 'DELETE', url: `/api/workspaces/${deleteWorkspaceId}` }, 200);
   assert.equal((await pool.query('SELECT deleted_at IS NOT NULL AS deleted FROM workspaces WHERE id=$1', [deleteWorkspaceId])).rows[0]?.deleted, true);
   assert.equal((await pool.query('SELECT deleted_at IS NULL AS active FROM collaboration_batches WHERE id=$1', [deleteWorkspaceBatchId])).rows[0]?.active, true);
+  await expectSystemAdminStatus('system admin cannot read audit for a deleted workspace', {
+    method: 'GET',
+    url: `/api/audit?${new URLSearchParams({ workspaceId: deleteWorkspaceId })}`,
+  }, 403);
 
   const unauthorized = await app.inject({ method: 'GET', url: `/api/workspaces/${workspaceId}/products` });
   assert.equal(unauthorized.statusCode, 401);
