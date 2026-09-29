@@ -68,15 +68,16 @@ async function createUserWithPersonalWorkspace(username: string, password: strin
 }
 function canManage(r: string | null) { return r === 'owner' || r === 'admin'; }
 export function canEditWorkspace(r: string | null) { return r === 'owner' || r === 'admin' || r === 'editor'; }
-export type BatchContext = { workspaceId: string; batchRole: string | null; workspaceRole: string | null };
+export type BatchContext = { workspaceId: string; batchRole: string | null; memberRole: string | null; workspaceRole: string | null };
 export async function batchContext(request: Req, batchId: string): Promise<BatchContext | null> {
   const row = (await getPool().query('SELECT workspace_id FROM collaboration_batches WHERE id=$1 AND deleted_at IS NULL', [batchId])).rows[0] as { workspace_id: string } | undefined;
   if (!row || !request.access) return null;
   const workspaceRole = await accessRole(request, row.workspace_id);
   if (!workspaceRole) return null;
-  if (request.access.superAdmin || canManage(workspaceRole)) return { workspaceId: row.workspace_id, batchRole: 'owner', workspaceRole };
   const member = (await getPool().query('SELECT role FROM batch_members WHERE batch_id=$1 AND user_id=$2', [batchId, request.access.id])).rows[0] as { role: string } | undefined;
-  return { workspaceId: row.workspace_id, batchRole: member?.role ?? null, workspaceRole };
+  const memberRole = member?.role ?? null;
+  if (request.access.superAdmin || canManage(workspaceRole)) return { workspaceId: row.workspace_id, batchRole: 'owner', memberRole, workspaceRole };
+  return { workspaceId: row.workspace_id, batchRole: memberRole, memberRole, workspaceRole };
 }
 export function canReadBatch(context: BatchContext | null) { return Boolean(context?.batchRole); }
 export function canEditBatch(context: BatchContext | null) { return Boolean(context && (context.batchRole === 'owner' || context.batchRole === 'editor')); }
@@ -207,14 +208,14 @@ export async function registerAccessRoutes(app: FastifyInstance): Promise<void> 
     if(r.access!.superAdmin){
       const params=workspaceId?[workspaceId]:[];
       const filter=workspaceId?' AND b.workspace_id=$1':'';
-      return (await getPool().query(`SELECT b.id,b.workspace_id,b.name,b.status,b.created_at,'owner' AS role FROM collaboration_batches b JOIN workspaces w ON w.id=b.workspace_id AND w.deleted_at IS NULL WHERE b.deleted_at IS NULL${filter} ORDER BY b.created_at DESC`,params)).rows;
+      return (await getPool().query(`SELECT b.id,b.workspace_id,b.name,b.status,b.created_at,'owner' AS role,NULL::text AS "memberRole",'owner' AS "workspaceRole" FROM collaboration_batches b JOIN workspaces w ON w.id=b.workspace_id AND w.deleted_at IS NULL WHERE b.deleted_at IS NULL${filter} ORDER BY b.created_at DESC`,params)).rows;
     }
     if(rejectLegacyAccount(r,reply))return;
     const params=workspaceId?[r.access!.id,workspaceId]:[r.access!.id];
     const filter=workspaceId?' AND b.workspace_id=$2':'';
-    return (await getPool().query(`SELECT DISTINCT b.id,b.workspace_id,b.name,b.status,b.created_at,CASE WHEN wm.role IN ('owner','admin') THEN 'owner' ELSE m.role END AS role FROM collaboration_batches b JOIN workspaces w ON w.id=b.workspace_id AND w.deleted_at IS NULL JOIN workspace_members wm ON wm.workspace_id=b.workspace_id AND wm.user_id=$1 LEFT JOIN batch_members m ON m.batch_id=b.id AND m.user_id=$1 WHERE b.deleted_at IS NULL${filter} AND (wm.role IN ('owner','admin') OR m.user_id IS NOT NULL) ORDER BY b.created_at DESC`,params)).rows;
+    return (await getPool().query(`SELECT DISTINCT b.id,b.workspace_id,b.name,b.status,b.created_at,CASE WHEN wm.role IN ('owner','admin') THEN 'owner' ELSE m.role END AS role,m.role AS "memberRole",wm.role AS "workspaceRole" FROM collaboration_batches b JOIN workspaces w ON w.id=b.workspace_id AND w.deleted_at IS NULL JOIN workspace_members wm ON wm.workspace_id=b.workspace_id AND wm.user_id=$1 LEFT JOIN batch_members m ON m.batch_id=b.id AND m.user_id=$1 WHERE b.deleted_at IS NULL${filter} AND (wm.role IN ('owner','admin') OR m.user_id IS NOT NULL) ORDER BY b.created_at DESC`,params)).rows;
   });
-  app.get<{ Params:{id:string} }>('/api/batches/:id', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canReadBatch(context))return reply.code(404).send({code:'NOT_FOUND'});const batch=(await getPool().query('SELECT id,workspace_id,name,status,created_by,created_at FROM collaboration_batches WHERE id=$1 AND deleted_at IS NULL',[request.params.id])).rows[0];return {...batch,role:context!.batchRole};});
+  app.get<{ Params:{id:string} }>('/api/batches/:id', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canReadBatch(context))return reply.code(404).send({code:'NOT_FOUND'});const batch=(await getPool().query('SELECT id,workspace_id,name,status,created_by,created_at FROM collaboration_batches WHERE id=$1 AND deleted_at IS NULL',[request.params.id])).rows[0];return {...batch,role:context!.batchRole,memberRole:context!.memberRole,workspaceRole:context!.workspaceRole};});
   app.get<{ Params:{id:string} }>('/api/batches/:id/members', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canReadBatch(context))return reply.code(404).send({code:'NOT_FOUND'});return (await getPool().query('SELECT u.id,u.username,m.role,m.created_at FROM batch_members m JOIN users u ON u.id=m.user_id WHERE m.batch_id=$1 ORDER BY m.created_at',[request.params.id])).rows;});
   app.patch<{ Params:{id:string}; Body:{name?:string} }>('/api/batches/:id', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canManageBatch(context))return reply.code(403).send({code:'FORBIDDEN'});const name=request.body?.name?.trim();if(!name)return reply.code(400).send({code:'INVALID_BATCH'});await getPool().query('UPDATE collaboration_batches SET name=$2 WHERE id=$1',[request.params.id,name]);await audit(context!.workspaceId,r.access!.id,'batch.update','batch',request.params.id);return {ok:true};});
   app.delete<{ Params:{id:string} }>('/api/batches/:id', async(request,reply)=>{const r=request as Req;if(!(await auth(r,reply)))return;const context=await batchContext(r,request.params.id);if(!canManageBatch(context))return reply.code(403).send({code:'FORBIDDEN'});await getPool().query('UPDATE collaboration_batches SET deleted_at=now() WHERE id=$1 AND deleted_at IS NULL',[request.params.id]);await audit(context!.workspaceId,r.access!.id,'batch.delete','batch',request.params.id);return {ok:true};});

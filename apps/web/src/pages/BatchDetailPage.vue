@@ -30,6 +30,8 @@ const deletingBatch = ref(false);
 const showBatchDeleteConfirm = ref(false);
 
 const canManage = computed(() => Boolean(batch.value && (batch.value.role === 'owner' || store.canManageWorkspace)));
+const displayedBatchRole = computed(() => batch.value?.memberRole ?? batch.value?.role ?? 'viewer');
+const isWorkspaceAdmin = computed(() => batch.value?.workspaceRole === 'admin');
 const roleText = (role: BatchRole) => ({ owner: '所有者', editor: '编辑者', viewer: '查看者' }[role]);
 const formatDate = formatDateTime;
 const memberOptions = computed(() => store.members.filter((member) => !members.value.some((item) => item.id === member.id)).map((member) => ({ text: member.username, value: member.id })));
@@ -122,7 +124,7 @@ onMounted(load);
     <main v-else-if="batch" class="detail-content">
       <header class="detail-header" data-ai-id="batch-detail-header"><div><div class="batch-name-row" data-ai-id="batch-detail-name"><h1>{{ batch.name }}</h1><van-button v-if="canManage" class="name-edit-button" plain data-ai-id="batch-name-edit" aria-label="修改批次名称" @click="openNameEditor"><van-icon name="edit" /></van-button></div><van-tag :type="batch.status === 'open' ? 'success' : 'default'">{{ batch.status === 'open' ? '开放' : '已关闭' }}</van-tag></div></header>
       <section class="detail-summary" data-ai-id="batch-detail-summary">
-        <div class="summary-row"><span>我的角色</span><strong>{{ roleText(batch.role) }}</strong></div>
+        <div class="summary-row"><span>批次角色</span><strong>{{ roleText(displayedBatchRole) }}<van-tag v-if="isWorkspaceAdmin" type="warning" class="workspace-admin-tag">工作区管理员</van-tag></strong></div>
         <div class="summary-row"><span>创建时间</span><strong>{{ formatDate(batch.created_at) }}</strong></div>
         <div class="summary-row"><span>参与人</span><strong>{{ members.length }} 人</strong></div>
       </section>
@@ -163,6 +165,7 @@ onMounted(load);
 .summary-row:last-child { border-bottom:0; }
 .summary-row span { color:#8993a7; font-size:12px; text-align:right; }
 .summary-row strong { min-width:0; color:#172033; font-size:14px; font-weight:600; }
+.workspace-admin-tag { margin-left:8px; vertical-align:middle; }
 .detail-section { margin-bottom:24px; }
 .quick-entry { margin-bottom:12px; }
 .detail-section h2,.section-head h2 { margin:0; color:#172033; font-size:17px; }

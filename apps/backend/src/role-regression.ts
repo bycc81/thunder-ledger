@@ -228,8 +228,18 @@ try {
 
   await expectStatus('editor cannot delete batch', 'editor', { method: 'DELETE', url: `/api/batches/${batchId}` }, 403);
   await expectStatus('viewer cannot delete batch', 'viewer', { method: 'DELETE', url: `/api/batches/${batchId}` }, 403);
-  const adminBatchDetail = await expectStatus('admin sees batch detail as owner', 'admin', { method: 'GET', url: `/api/batches/${batchId}` }, 200);
-  assert.equal((adminBatchDetail.json() as { role: string }).role, 'owner');
+  const adminBatchDetail = await expectStatus('admin sees effective batch management access with actual roles', 'admin', { method: 'GET', url: `/api/batches/${batchId}` }, 200);
+  assert.deepEqual(adminBatchDetail.json(), {
+    id: batchId,
+    workspace_id: workspaceId,
+    name: `角色回归批次-${'admin'}`,
+    status: 'open',
+    created_by: userIds.owner,
+    created_at: (adminBatchDetail.json() as { created_at: string }).created_at,
+    role: 'owner',
+    memberRole: 'viewer',
+    workspaceRole: 'admin',
+  });
   await expectStatus('owner deletes batch with business records', 'owner', { method: 'DELETE', url: `/api/batches/${batchId}` }, 200);
   assert.equal((await pool.query('SELECT deleted_at IS NOT NULL AS deleted FROM collaboration_batches WHERE id=$1', [batchId])).rows[0]?.deleted, true);
 

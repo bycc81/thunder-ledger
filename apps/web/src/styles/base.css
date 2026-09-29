@@ -17,8 +17,11 @@
 
 * { box-sizing: border-box; }
 html, body, #app { min-height: 100%; max-width:100%; margin: 0; overflow-x:hidden; }
+html { touch-action: manipulation; }
 body { min-width: 320px; background: #e9edf5; }
-button, input { font: inherit; }
+button, input, textarea, select { font: inherit; }
+input, textarea, select { font-size: 16px; }
+.van-field__control { font-size: 16px !important; }
 
 /*
  * 尺寸仅由这里统一控制：Vant 的 small 即紧凑操作，普通按钮即主操作。
