@@ -10,6 +10,7 @@ docs/
 ├─ roadmap/                      产品路线图（Markdown + HTML）
 ├─ standards/                    开发规范、流程、模板和检查清单
 ├─ changes/                      各批次设计、测试和变更记录
+├─ user-manual.md                用户使用手册（核心业务流程）
 ├─ deployment.md                 部署说明
 ├─ operations-log.md             生产备份、恢复与密钥运维记录
 └─ assets/                       文档及部署相关静态资源

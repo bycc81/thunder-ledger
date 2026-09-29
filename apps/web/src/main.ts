@@ -55,6 +55,7 @@ import SettlementCreatePage from './pages/SettlementCreatePage.vue';
 import SettlementDetailPage from './pages/SettlementDetailPage.vue';
 import SettlementAdjustmentDetailPage from './pages/SettlementAdjustmentDetailPage.vue';
 import ReportsPage from './pages/ReportsPage.vue';
+import UserManualPage from './pages/UserManualPage.vue';
 import { useAuthStore } from './stores/auth';
 const router = createRouter({
   history: createWebHistory(),
@@ -82,6 +83,7 @@ const router = createRouter({
     { path: '/members', component: MembersPage, meta: { requiresAuth: true } },
     { path: '/audit', component: OperationRecordsPage, meta: { requiresAuth: true } },
     { path: '/reports', component: ReportsPage, meta: { requiresAuth: true } },
+    { path: '/help/user-manual', component: UserManualPage, meta: { requiresAuth: true } },
     { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
     { path: '/accounts', component: AccountManagementPage, meta: { requiresAuth: true } },
     { path: '/products', component: ProductsPage, meta: { requiresAuth: true } },

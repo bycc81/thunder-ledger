@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>ThunderLedger 使用手册原型</title>
+    <style>
+      :root { color: #172033; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f7fb; }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body { max-width: 480px; min-height: 100vh; margin: 0 auto; background: #f5f7fb; }
+      button, a, summary { -webkit-tap-highlight-color: transparent; }
+      .topbar { position: sticky; top: 0; z-index: 2; display: flex; min-height: 56px; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #edf0f5; background: #fff; }
+      .topbar h1 { margin: 0; font-size: 17px; }
+      .back { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; padding: 0; border: 0; background: transparent; color: #3657c8; font: inherit; }
+      .spacer { width: 44px; }
+      main { padding: 18px 16px 32px; }
+      h2 { margin: 24px 0 9px; font-size: 17px; }
+      h3 { margin: 0 0 4px; font-size: 15px; }
+      p { margin: 0; color: #536078; font-size: 14px; line-height: 1.55; }
+      .intro { margin: 0 0 14px; color: #71809a; font-size: 13px; }
+      .task-list, .rules, .faq { overflow: hidden; border-radius: 10px; background: #fff; box-shadow: 0 1px 0 #e4e8f0; }
+      .task { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #edf0f5; color: inherit; text-decoration: none; }
+      .task:last-child, .rule:last-child { border-bottom: 0; }
+      .task strong { display: block; margin-bottom: 3px; font-size: 15px; }
+      .task small { display: block; color: #71809a; font-size: 12px; line-height: 1.35; }
+      .arrow { color: #8993a7; font-size: 20px; }
+      .compare { display: grid; gap: 8px; }
+      .compare article { padding: 14px; border-radius: 10px; background: #fff; box-shadow: 0 1px 0 #e4e8f0; }
+      .compare .tag { display: inline-block; margin-bottom: 8px; padding: 2px 6px; border: 1px solid #3657c8; border-radius: 4px; color: #3657c8; font-size: 12px; }
+      .compare ul { margin: 9px 0 0; padding-left: 19px; color: #536078; font-size: 13px; line-height: 1.65; }
+      .rule { display: flex; gap: 12px; padding: 12px; border-bottom: 1px solid #edf0f5; }
+      .rule b { display: grid; width: 24px; height: 24px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #eef2ff; color: #3657c8; font-size: 12px; }
+      .rule strong { display: block; margin-bottom: 3px; font-size: 14px; }
+      .note { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: #edf1ff; color: #2949aa; font-size: 13px; line-height: 1.5; }
+      details { border-bottom: 1px solid #edf0f5; }
+      details:last-child { border-bottom: 0; }
+      summary { display: flex; min-height: 52px; align-items: center; padding: 0 12px; cursor: pointer; font-size: 14px; font-weight: 600; list-style: none; }
+      summary::after { margin-left: auto; color: #8993a7; content: "⌄"; font-size: 18px; }
+      details[open] summary::after { transform: rotate(180deg); }
+      details p { padding: 0 12px 12px; font-size: 13px; }
+      a:focus-visible, summary:focus-visible, button:focus-visible { outline: 2px solid #3657c8; outline-offset: -2px; }
+      @media (min-width: 600px) { body { box-shadow: 0 0 28px rgba(30, 48, 80, .12); } }
+    </style>
+  </head>
+  <body>
+    <header class="topbar" data-ai-id="user-manual-topbar">
+      <button class="back" type="button" data-ai-id="user-manual-back" onclick="history.back()">‹ 返回</button>
+      <h1>使用手册</h1>
+      <span class="spacer" aria-hidden="true"></span>
+    </header>
+    <main data-ai-id="user-manual-page">
+      <p class="intro">先选择你要完成的操作，再查看对应步骤和不能忽略的规则。</p>
+
+      <h2>先选对操作</h2>
+      <nav class="task-list" data-ai-id="user-manual-task-nav" aria-label="操作导航">
+        <a class="task" href="#purchase" data-ai-id="user-manual-task-purchase"><span><strong>登记采购</strong><small>商品到货，录入数量、付款和成本</small></span><span class="arrow">›</span></a>
+        <a class="task" href="#sale" data-ai-id="user-manual-task-sale"><span><strong>普通销售</strong><small>卖出一个已有库存商品</small></span><span class="arrow">›</span></a>
+        <a class="task" href="#quick-sale" data-ai-id="user-manual-task-quick-sale"><span><strong>快速售出</strong><small>组合、多商品或不建商品直接卖</small></span><span class="arrow">›</span></a>
+        <a class="task" href="#expense" data-ai-id="user-manual-task-expense"><span><strong>记录费用</strong><small>登记邮费、包装费等垫付支出</small></span><span class="arrow">›</span></a>
+        <a class="task" href="#settlement" data-ai-id="user-manual-task-settlement"><span><strong>创建结算</strong><small>生成利润分配与应收应付</small></span><span class="arrow">›</span></a>
+      </nav>
+
+      <section id="sale" data-ai-id="user-manual-sale-compare">
+        <h2>普通销售还是快速售出？</h2>
+        <div class="compare">
+          <article>
+            <span class="tag">普通销售</span>
+            <h3>一个已有库存商品</h3>
+            <ul><li>选择商品和数量，数量不能超过可卖库存。</li><li>保存后扣减该商品库存。</li><li>结算成本按库存成本计算。</li></ul>
+          </article>
+          <article>
+            <span class="tag">快速售出</span>
+            <h3>一次卖多件或自由录入</h3>
+            <ul><li>可添加多个商品项，商品名自由填写。</li><li>每项可不关联库存，也可多选关联库存。</li><li>结算成本以每项填写的本单成本为准。</li></ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="quick-sale" data-ai-id="user-manual-quick-sale">
+        <h2>快速售出重点</h2>
+        <div class="rules">
+          <div class="rule"><b>1</b><div><strong>本单成本必须填写</strong><p>每个商品项都要填写本单成本；可以填 0，但不能留空。</p></div></div>
+          <div class="rule"><b>2</b><div><strong>关联库存可多选</strong><p>开启关联库存后，可添加多个已有库存商品，并分别填写关联数量。</p></div></div>
+          <div class="rule"><b>3</b><div><strong>只扣被关联的库存</strong><p>未关联库存的商品项不会扣库存，也不会自动创建商品或采购记录。</p></div></div>
+          <div class="rule"><b>4</b><div><strong>数量不一致需要确认</strong><p>售出数量和关联库存数量可以不同；保存前会提示确认，系统不会自动改数。</p></div></div>
+        </div>
+        <p class="note">快速售出详情会同时显示“本单成本”和“库存账消耗成本”：结算使用本单成本，库存账成本用于维护剩余库存成本。</p>
+      </section>
+
+      <section id="purchase" data-ai-id="user-manual-inventory-settlement">
+        <h2>采购、费用与结算</h2>
+        <div class="rules">
+          <div class="rule"><b>购</b><div><strong>采购形成库存</strong><p>总成本允许为 0；成本承担合计必须等于总成本。</p></div></div>
+          <div class="rule" id="expense"><b>费</b><div><strong>费用最多关联一种交易</strong><p>费用可关联普通销售或快速售出；关联后会随该交易自动进入结算。</p></div></div>
+          <div class="rule" id="settlement"><b>结</b><div><strong>结算会同时纳入两类销售</strong><p>勾选普通销售和快速售出，确认利润比例后生成锁定的阶段账单。</p></div></div>
+        </div>
+      </section>
+
+      <section data-ai-id="user-manual-faq">
+        <h2>常见问题</h2>
+        <div class="faq">
+          <details data-ai-id="user-manual-faq-quick-sale-cost"><summary>快速售出不关联库存可以吗？</summary><p>可以。仍需填写商品名、数量、本单成本、成交总价和卖出人；不会扣库存，也不会创建商品。</p></details>
+          <details data-ai-id="user-manual-faq-inventory"><summary>为什么普通销售里的可卖数量变少了？</summary><p>除普通销售和损坏/丢失外，已关联库存的未撤销快速售出也会占用并扣减可卖库存。</p></details>
+          <details data-ai-id="user-manual-faq-reverse"><summary>能撤销已结账交易吗？</summary><p>不能。已结账交易不能直接撤销，需要通过既有的结算调整流程处理。</p></details>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
