@@ -1,12 +1,12 @@
 import type { PoolClient } from 'pg';
 
 type AmountMap = Map<string, number>;
-type EventKind = 'purchase' | 'sale' | 'adjustment';
+type EventKind = 'purchase' | 'sale' | 'quick-sale' | 'adjustment';
 type Event = { id: string; kind: EventKind; occurredAt: string; occurredAtMs: number; quantity: number; cost?: number; payerUserId?: string; shares?: Array<{ userId: string; amount: number }> };
 export type SaleCost = { cost: number; payer: AmountMap; burden: AmountMap };
 export class InventoryTimelineError extends Error {
-  constructor(event: { kind: 'sale' | 'adjustment'; occurredAt: string; requiredQuantity: number; availableQuantity: number }) {
-    const kindText = event.kind === 'sale' ? '销售' : '报损/丢失';
+  constructor(event: { kind: 'sale' | 'quick-sale' | 'adjustment'; occurredAt: string; requiredQuantity: number; availableQuantity: number }) {
+    const kindText = event.kind === 'adjustment' ? '报损/丢失' : '销售';
     super(`${formatBusinessTime(event.occurredAt)} 的${kindText}需要 ${event.requiredQuantity} 件，当时库存只有 ${event.availableQuantity} 件。请补录更早的采购，或调整采购/销售时间。`);
     this.name = 'InventoryTimelineError';
   }
@@ -23,7 +23,7 @@ function split(total: number, source: AmountMap): AmountMap {
 function subtract(target: AmountMap, values: AmountMap) { for (const [id, amount] of values) target.set(id, (target.get(id) ?? 0) - amount); }
 function add(target: AmountMap, id: string, amount: number) { target.set(id, (target.get(id) ?? 0) + amount); }
 export function compareInventoryTimelineEvents(a: { id: string; kind: EventKind; occurredAtMs: number }, b: { id: string; kind: EventKind; occurredAtMs: number }): number {
-  return a.occurredAtMs - b.occurredAtMs || ({ purchase: 0, adjustment: 1, sale: 2 }[a.kind] - { purchase: 0, adjustment: 1, sale: 2 }[b.kind]) || a.id.localeCompare(b.id);
+  return a.occurredAtMs - b.occurredAtMs || ({ purchase: 0, adjustment: 1, sale: 2, 'quick-sale': 2 }[a.kind] - { purchase: 0, adjustment: 1, sale: 2, 'quick-sale': 2 }[b.kind]) || a.id.localeCompare(b.id);
 }
 function eventTime(value: unknown) {
   const date = value instanceof Date ? value : new Date(String(value));
@@ -37,6 +37,7 @@ function formatBusinessTime(value: string): string {
 export async function rebuildProductCostLedger(client: PoolClient, batchId: string, productId: string): Promise<{ quantity: number; cost: number; sales: Map<string, SaleCost> }> {
   const purchasesResult = await client.query(`SELECT id,quantity,total_cost_cents::text AS cost,payer_user_id AS "payerUserId",occurred_at AS "occurredAt" FROM inventory_purchases WHERE batch_id=$1 AND product_id=$2`, [batchId, productId]);
   const salesResult = await client.query(`SELECT s.id,s.quantity,s.occurred_at AS "occurredAt" FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id WHERE s.batch_id=$1 AND s.product_id=$2 AND sr.sale_id IS NULL`, [batchId, productId]);
+  const quickSalesResult = await client.query(`SELECT qsc.id,qsc.quantity,qs.occurred_at AS "occurredAt" FROM quick_sale_inventory_consumptions qsc JOIN quick_sale_items qsi ON qsi.id=qsc.quick_sale_item_id JOIN quick_sales qs ON qs.id=qsi.quick_sale_id LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id WHERE qs.batch_id=$1 AND qsc.product_id=$2 AND qsr.quick_sale_id IS NULL`, [batchId, productId]);
   const adjustmentsResult = await client.query('SELECT id,quantity,created_at AS "occurredAt" FROM inventory_adjustments WHERE batch_id=$1 AND product_id=$2', [batchId, productId]);
   const purchaseIds = purchasesResult.rows.map((row) => row.id as string);
   const sharesResult = purchaseIds.length ? await client.query('SELECT purchase_id AS "purchaseId",user_id AS "userId",amount_cents::text AS amount FROM purchase_cost_shares WHERE purchase_id=ANY($1::uuid[])', [purchaseIds]) : { rows: [] as Array<{ purchaseId: string; userId: string; amount: string }> };
@@ -44,6 +45,7 @@ export async function rebuildProductCostLedger(client: PoolClient, batchId: stri
   const events: Event[] = [
     ...purchasesResult.rows.map((row) => ({ id: row.id as string, kind: 'purchase' as const, ...eventTime(row.occurredAt), quantity: Number(row.quantity), cost: Number(row.cost), payerUserId: String(row.payerUserId), shares: shares.get(row.id as string) ?? [] })),
     ...salesResult.rows.map((row) => ({ id: row.id as string, kind: 'sale' as const, ...eventTime(row.occurredAt), quantity: Number(row.quantity) })),
+    ...quickSalesResult.rows.map((row) => ({ id: row.id as string, kind: 'quick-sale' as const, ...eventTime(row.occurredAt), quantity: Number(row.quantity) })),
     ...adjustmentsResult.rows.map((row) => ({ id: row.id as string, kind: 'adjustment' as const, ...eventTime(row.occurredAt), quantity: Number(row.quantity) })),
   ].sort(compareInventoryTimelineEvents);
   let quantity = 0; let totalCost = 0; const payer = new Map<string, number>(); const burden = new Map<string, number>(); const sales = new Map<string, SaleCost>();
@@ -53,7 +55,12 @@ export async function rebuildProductCostLedger(client: PoolClient, batchId: stri
     const cost = event.quantity === quantity ? totalCost : Math.floor(totalCost * event.quantity / quantity); const payerOut = split(cost, payer); const burdenOut = split(cost, burden);
     quantity -= event.quantity; totalCost -= cost; subtract(payer, payerOut); subtract(burden, burdenOut);
     if (event.kind === 'sale') sales.set(event.id, { cost, payer: payerOut, burden: burdenOut });
-    else await client.query('UPDATE inventory_adjustments SET consumed_cost_cents=$2 WHERE id=$1', [event.id, cost]);
+    else if (event.kind === 'quick-sale') {
+      await client.query('UPDATE quick_sale_inventory_consumptions SET consumed_cost_cents=$2 WHERE id=$1', [event.id, cost]);
+      await client.query('DELETE FROM quick_sale_inventory_cost_allocations WHERE consumption_id=$1', [event.id]);
+      for (const [userId, amount] of payerOut) await client.query("INSERT INTO quick_sale_inventory_cost_allocations(consumption_id,allocation_type,user_id,amount_cents) VALUES($1,'payer',$2,$3)", [event.id, userId, amount]);
+      for (const [userId, amount] of burdenOut) await client.query("INSERT INTO quick_sale_inventory_cost_allocations(consumption_id,allocation_type,user_id,amount_cents) VALUES($1,'burden',$2,$3)", [event.id, userId, amount]);
+    } else await client.query('UPDATE inventory_adjustments SET consumed_cost_cents=$2 WHERE id=$1', [event.id, cost]);
   }
   for (const [saleId, value] of sales) {
     await client.query('UPDATE sales SET consumed_cost_cents=$2 WHERE id=$1', [saleId, value.cost]);

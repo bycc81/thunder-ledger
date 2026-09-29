@@ -6,6 +6,7 @@ import {
   Cell,
   CellGroup,
   Checkbox,
+  CheckboxGroup,
   Dialog,
   DropdownItem,
   DropdownMenu,
@@ -21,6 +22,8 @@ import {
   Radio,
   RadioGroup,
   Search,
+  Stepper,
+  Switch,
   Tabbar,
   TabbarItem,
   Tag,
@@ -49,6 +52,8 @@ import PurchaseFormPage from './pages/PurchaseFormPage.vue';
 import TransactionsPage from './pages/TransactionsPage.vue';
 import TransactionFormPage from './pages/TransactionFormPage.vue';
 import SaleDetailPage from './pages/SaleDetailPage.vue';
+import QuickSaleFormPage from './pages/QuickSaleFormPage.vue';
+import QuickSaleDetailPage from './pages/QuickSaleDetailPage.vue';
 import AccountManagementPage from './pages/AccountManagementPage.vue';
 import SettlementPage from './pages/SettlementPage.vue';
 import SettlementCreatePage from './pages/SettlementCreatePage.vue';
@@ -75,6 +80,8 @@ const router = createRouter({
     { path: '/batches/:id/transactions', component: TransactionsPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/transactions/sales/new', component: TransactionFormPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/transactions/sales/:saleId', component: SaleDetailPage, meta: { requiresAuth: true } },
+    { path: '/batches/:id/quick-sales/new', component: QuickSaleFormPage, meta: { requiresAuth: true } },
+    { path: '/batches/:id/quick-sales/:quickSaleId', component: QuickSaleDetailPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/transactions/expenses/new', component: TransactionFormPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/settlements', component: SettlementPage, meta: { requiresAuth: true } },
     { path: '/batches/:id/settlements/new', component: SettlementCreatePage, meta: { requiresAuth: true } },
@@ -109,7 +116,7 @@ router.beforeEach(async (to) => {
   return true;
 });
 const app = createApp(App).use(pinia).use(router);
-[Button, Cell, CellGroup, Checkbox, Dialog, DropdownItem, DropdownMenu, Empty, Field, Form, Icon, Loading, NavBar, Picker, Popover, Popup, Radio, RadioGroup, Search, Tabbar, TabbarItem, Tag].forEach((component) => app.use(component));
+[Button, Cell, CellGroup, Checkbox, CheckboxGroup, Dialog, DropdownItem, DropdownMenu, Empty, Field, Form, Icon, Loading, NavBar, Picker, Popover, Popup, Radio, RadioGroup, Search, Stepper, Switch, Tabbar, TabbarItem, Tag].forEach((component) => app.use(component));
 
 window.addEventListener('auth:expired', async () => {
   const auth = useAuthStore(pinia);

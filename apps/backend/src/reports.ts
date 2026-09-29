@@ -105,6 +105,7 @@ async function report(context: ReportContext) {
   const params = queryParams(context);
   const purchaseDate = dateClause('ip', context.from, context.to);
   const saleDate = dateClause('s', context.from, context.to);
+  const quickSaleDate = dateClause('qs', context.from, context.to);
   const adjustmentDate = dateClause('ia', context.from, context.to, 'created_at');
   const expenseDate = dateClause('e', context.from, context.to);
 
@@ -117,18 +118,24 @@ async function report(context: ReportContext) {
         SELECT s.batch_id,s.product_id,SUM(s.quantity)::int AS "soldQuantity",SUM(s.consumed_cost_cents)::text AS "soldCost"
         FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id
         WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate} GROUP BY s.batch_id,s.product_id
+      ), quickSales AS (
+        SELECT qs.batch_id,qsc.product_id,SUM(qsc.quantity)::int AS "soldQuantity",SUM(qsc.consumed_cost_cents)::text AS "soldCost"
+        FROM quick_sale_inventory_consumptions qsc JOIN quick_sale_items qsi ON qsi.id=qsc.quick_sale_item_id
+        JOIN quick_sales qs ON qs.id=qsi.quick_sale_id LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id
+        WHERE qs.batch_id=ANY($1::uuid[]) AND qsr.quick_sale_id IS NULL${quickSaleDate} GROUP BY qs.batch_id,qsc.product_id
       ), adjustments AS (
         SELECT ia.batch_id,ia.product_id,SUM(ia.quantity)::int AS "adjustedQuantity",SUM(ia.consumed_cost_cents)::text AS "adjustedCost"
         FROM inventory_adjustments ia WHERE ia.batch_id=ANY($1::uuid[])${adjustmentDate} GROUP BY ia.batch_id,ia.product_id
       )
       SELECT b.id AS "batchId",b.name AS "batchName",p.id AS "productId",p.name AS "productName",purchases."purchaseQuantity",
-        COALESCE(sales."soldQuantity",0)::int AS "soldQuantity",
+        (COALESCE(sales."soldQuantity",0)::bigint+COALESCE(quickSales."soldQuantity",0)::bigint)::int AS "soldQuantity",
         COALESCE(adjustments."adjustedQuantity",0)::int AS "adjustedQuantity",
-        purchases."purchaseCost",COALESCE(sales."soldCost",'0') AS "soldCost",
+        purchases."purchaseCost",(COALESCE(sales."soldCost",'0')::bigint+COALESCE(quickSales."soldCost",'0')::bigint)::text AS "soldCost",
         COALESCE(adjustments."adjustedCost",'0') AS "adjustedCost"
       FROM purchases JOIN products p ON p.id=purchases.product_id
       JOIN collaboration_batches b ON b.id=purchases.batch_id
       LEFT JOIN sales ON sales.batch_id=purchases.batch_id AND sales.product_id=purchases.product_id
+      LEFT JOIN quickSales ON quickSales.batch_id=purchases.batch_id AND quickSales.product_id=purchases.product_id
       LEFT JOIN adjustments ON adjustments.batch_id=purchases.batch_id AND adjustments.product_id=purchases.product_id
       ORDER BY b.created_at DESC,p.name
     `, params)).rows as Array<Record<string, string | number>>;
@@ -146,14 +153,24 @@ async function report(context: ReportContext) {
 
   if (context.reportType === 'sales') {
     const rows = (await pool.query(`
-      SELECT s.id AS "saleId",b.name AS "batchName",p.name AS "productName",s.quantity,s.total_price_cents::text AS "totalPriceCents",
-        s.consumed_cost_cents::text AS "consumedCostCents",s.service_fee_cents::text AS "serviceFeeCents",s.sales_channel AS "salesChannel",u.username AS "sellerUsername",s.occurred_at AS "occurredAt",
-        (sbs.sale_id IS NOT NULL) AS settled
-      FROM sales s JOIN products p ON p.id=s.product_id JOIN collaboration_batches b ON b.id=s.batch_id
-      JOIN users u ON u.id=s.seller_user_id LEFT JOIN sale_reversals sr ON sr.sale_id=s.id
-      LEFT JOIN settlement_bill_sales sbs ON sbs.sale_id=s.id
-      WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate}
-      ORDER BY s.occurred_at DESC,s.created_at DESC
+      SELECT * FROM (
+        SELECT s.id AS "saleId",b.name AS "batchName",p.name AS "productName",s.quantity,s.total_price_cents::text AS "totalPriceCents",
+          s.consumed_cost_cents::text AS "consumedCostCents",s.service_fee_cents::text AS "serviceFeeCents",s.sales_channel AS "salesChannel",u.username AS "sellerUsername",s.occurred_at AS "occurredAt",s.created_at AS "createdAt",
+          (sbs.sale_id IS NOT NULL) AS settled,'普通销售' AS "sourceLabel"
+        FROM sales s JOIN products p ON p.id=s.product_id JOIN collaboration_batches b ON b.id=s.batch_id
+        JOIN users u ON u.id=s.seller_user_id LEFT JOIN sale_reversals sr ON sr.sale_id=s.id
+        LEFT JOIN settlement_bill_sales sbs ON sbs.sale_id=s.id
+        WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate}
+        UNION ALL
+        SELECT qs.id AS "saleId",b.name AS "batchName",string_agg(qsi.name,' + ' ORDER BY qsi.position) AS "productName",SUM(qsi.quantity)::int AS quantity,qs.total_price_cents::text AS "totalPriceCents",
+          SUM(qsi.cost_cents)::bigint::text AS "consumedCostCents",qs.service_fee_cents::text AS "serviceFeeCents",qs.sales_channel AS "salesChannel",u.username AS "sellerUsername",qs.occurred_at AS "occurredAt",qs.created_at AS "createdAt",
+          (sbqs.quick_sale_id IS NOT NULL) AS settled,'快速售出' AS "sourceLabel"
+        FROM quick_sales qs JOIN quick_sale_items qsi ON qsi.quick_sale_id=qs.id JOIN collaboration_batches b ON b.id=qs.batch_id
+        JOIN users u ON u.id=qs.seller_user_id LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id
+        LEFT JOIN settlement_bill_quick_sales sbqs ON sbqs.quick_sale_id=qs.id
+        WHERE qs.batch_id=ANY($1::uuid[]) AND qsr.quick_sale_id IS NULL${quickSaleDate}
+        GROUP BY qs.id,b.name,u.username,sbqs.quick_sale_id
+      ) sales ORDER BY "occurredAt" DESC,"createdAt" DESC
     `, params)).rows as Array<Record<string, string | number | boolean>>;
     const mapped = rows.map((row) => ({ ...row, reportRowId: String(row.saleId), totalPrice: money(String(row.totalPriceCents)), consumedCost: money(String(row.consumedCostCents)), serviceFee: money(String(row.serviceFeeCents)), receivedAmount: money(Number(row.totalPriceCents) - Number(row.serviceFeeCents)), grossProfit: money(Number(row.totalPriceCents) - Number(row.serviceFeeCents) - Number(row.consumedCostCents)) }));
     const salesTotal = rows.reduce((total, row) => total + Number(row.totalPriceCents), 0);
@@ -165,11 +182,23 @@ async function report(context: ReportContext) {
   if (context.reportType === 'profit') {
     const rows = (await pool.query(`
       WITH sales AS (
-        SELECT s.batch_id,SUM(s.total_price_cents)::text AS "salesTotal",SUM(s.service_fee_cents)::text AS "serviceFeeTotal",SUM(s.consumed_cost_cents)::text AS "costTotal",
-          SUM(s.total_price_cents) FILTER (WHERE sbs.sale_id IS NOT NULL)::text AS "settledSales",
-          SUM(s.total_price_cents) FILTER (WHERE sbs.sale_id IS NULL)::text AS "unsettledSales"
-        FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id LEFT JOIN settlement_bill_sales sbs ON sbs.sale_id=s.id
-        WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate} GROUP BY s.batch_id
+        SELECT batch_id,SUM("salesTotal"::bigint)::text AS "salesTotal",SUM("serviceFeeTotal"::bigint)::text AS "serviceFeeTotal",SUM("costTotal"::bigint)::text AS "costTotal",
+          SUM("settledSales"::bigint)::text AS "settledSales",SUM("unsettledSales"::bigint)::text AS "unsettledSales"
+        FROM (
+          SELECT s.batch_id,s.total_price_cents::bigint AS "salesTotal",s.service_fee_cents::bigint AS "serviceFeeTotal",s.consumed_cost_cents::bigint AS "costTotal",
+            CASE WHEN sbs.sale_id IS NOT NULL THEN s.total_price_cents ELSE 0 END AS "settledSales",
+            CASE WHEN sbs.sale_id IS NULL THEN s.total_price_cents ELSE 0 END AS "unsettledSales"
+          FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id LEFT JOIN settlement_bill_sales sbs ON sbs.sale_id=s.id
+          WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate}
+          UNION ALL
+          SELECT qs.batch_id,qs.total_price_cents::bigint,qs.service_fee_cents::bigint,SUM(qsi.cost_cents)::bigint,
+            CASE WHEN sbqs.quick_sale_id IS NOT NULL THEN qs.total_price_cents ELSE 0 END,
+            CASE WHEN sbqs.quick_sale_id IS NULL THEN qs.total_price_cents ELSE 0 END
+          FROM quick_sales qs JOIN quick_sale_items qsi ON qsi.quick_sale_id=qs.id LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id
+          LEFT JOIN settlement_bill_quick_sales sbqs ON sbqs.quick_sale_id=qs.id
+          WHERE qs.batch_id=ANY($1::uuid[]) AND qsr.quick_sale_id IS NULL${quickSaleDate}
+          GROUP BY qs.batch_id,qs.id,sbqs.quick_sale_id
+        ) combined GROUP BY batch_id
       ), expenses AS (
         SELECT e.batch_id,SUM(e.amount_cents)::text AS "expenseTotal"
         FROM expenses e LEFT JOIN expense_reversals er ON er.expense_id=e.id
@@ -195,8 +224,15 @@ async function report(context: ReportContext) {
   if (context.reportType === 'members') {
     const rows = (await pool.query(`
       WITH sales AS (
-        SELECT s.batch_id,s.seller_user_id AS user_id,SUM(s.quantity)::int AS "salesQuantity",SUM(s.total_price_cents)::text AS "salesTotal",SUM(s.service_fee_cents)::text AS "serviceFeeTotal",SUM(s.consumed_cost_cents)::text AS "costTotal"
-        FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate} GROUP BY s.batch_id,s.seller_user_id
+        SELECT batch_id,user_id,SUM("salesQuantity")::int AS "salesQuantity",SUM("salesTotal"::bigint)::text AS "salesTotal",SUM("serviceFeeTotal"::bigint)::text AS "serviceFeeTotal",SUM("costTotal"::bigint)::text AS "costTotal"
+        FROM (
+          SELECT s.batch_id,s.seller_user_id AS user_id,SUM(s.quantity)::int AS "salesQuantity",SUM(s.total_price_cents)::text AS "salesTotal",SUM(s.service_fee_cents)::text AS "serviceFeeTotal",SUM(s.consumed_cost_cents)::text AS "costTotal"
+          FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL${saleDate} GROUP BY s.batch_id,s.seller_user_id
+          UNION ALL
+          SELECT qs.batch_id,qs.seller_user_id AS user_id,agg.quantity AS "salesQuantity",qs.total_price_cents::text AS "salesTotal",qs.service_fee_cents::text AS "serviceFeeTotal",agg.cost::text AS "costTotal"
+          FROM quick_sales qs JOIN (SELECT qsi.quick_sale_id,SUM(qsi.quantity)::int AS quantity,SUM(qsi.cost_cents)::bigint AS cost FROM quick_sale_items qsi GROUP BY qsi.quick_sale_id) agg ON agg.quick_sale_id=qs.id LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id
+          WHERE qs.batch_id=ANY($1::uuid[]) AND qsr.quick_sale_id IS NULL${quickSaleDate}
+        ) combined GROUP BY batch_id,user_id
       ), expenses AS (
         SELECT e.batch_id,e.payer_user_id AS user_id,SUM(e.amount_cents)::text AS "expenseTotal"
         FROM expenses e LEFT JOIN expense_reversals er ON er.expense_id=e.id WHERE e.batch_id=ANY($1::uuid[]) AND er.expense_id IS NULL${expenseDate} GROUP BY e.batch_id,e.payer_user_id
@@ -224,9 +260,17 @@ async function report(context: ReportContext) {
 
   const rows = (await pool.query(`
     WITH sales AS (
-      SELECT s.batch_id,COUNT(*)::int AS "saleCount",SUM(s.total_price_cents)::text AS "saleTotal",SUM(s.total_price_cents-s.service_fee_cents-s.consumed_cost_cents)::text AS "saleProfit"
-      FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id LEFT JOIN settlement_bill_sales sbs ON sbs.sale_id=s.id
-      WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL AND sbs.sale_id IS NULL${saleDate} GROUP BY s.batch_id
+      SELECT batch_id,SUM("saleCount")::int AS "saleCount",SUM("saleTotal"::bigint)::text AS "saleTotal",SUM("saleProfit"::bigint)::text AS "saleProfit"
+      FROM (
+        SELECT s.batch_id,COUNT(*)::int AS "saleCount",SUM(s.total_price_cents)::text AS "saleTotal",SUM(s.total_price_cents-s.service_fee_cents-s.consumed_cost_cents)::text AS "saleProfit"
+        FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id LEFT JOIN settlement_bill_sales sbs ON sbs.sale_id=s.id
+        WHERE s.batch_id=ANY($1::uuid[]) AND sr.sale_id IS NULL AND sbs.sale_id IS NULL${saleDate} GROUP BY s.batch_id
+        UNION ALL
+        SELECT qs.batch_id,COUNT(*)::int AS "saleCount",SUM(qs.total_price_cents)::text AS "saleTotal",SUM(qs.total_price_cents-qs.service_fee_cents-qc.cost)::text AS "saleProfit"
+        FROM quick_sales qs LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id LEFT JOIN settlement_bill_quick_sales sbqs ON sbqs.quick_sale_id=qs.id
+        LEFT JOIN (SELECT qsi.quick_sale_id,SUM(qsi.cost_cents)::bigint AS cost FROM quick_sale_items qsi GROUP BY qsi.quick_sale_id) qc ON qc.quick_sale_id=qs.id
+        WHERE qs.batch_id=ANY($1::uuid[]) AND qsr.quick_sale_id IS NULL AND sbqs.quick_sale_id IS NULL${quickSaleDate} GROUP BY qs.batch_id
+      ) combined GROUP BY batch_id
     ), expenses AS (
       SELECT e.batch_id,COUNT(*)::int AS "expenseCount",SUM(e.amount_cents)::text AS "expenseTotal"
       FROM expenses e LEFT JOIN expense_reversals er ON er.expense_id=e.id LEFT JOIN settlement_bill_expenses sbe ON sbe.expense_id=e.id
@@ -251,7 +295,7 @@ function csvCell(value: unknown): string {
 function csvFor(type: ReportType, rows: Array<Record<string, unknown>>): string {
   const columns: Record<ReportType, Array<[string, string]>> = {
     inventory: [['batchName', '批次'], ['productName', '商品'], ['purchaseQuantity', '采购数量'], ['soldQuantity', '销售数量'], ['adjustedQuantity', '减少库存数量'], ['availableQuantity', '可卖数量'], ['purchaseCost', '采购成本'], ['remainingCost', '剩余成本']],
-    sales: [['batchName', '批次'], ['productName', '商品'], ['quantity', '数量'], ['totalPrice', '销售额'], ['consumedCost', '销售成本'], ['grossProfit', '销售利润（未扣费用）'], ['sellerUsername', '卖出人'], ['occurredAt', '发生时间'], ['settled', '已结算']],
+    sales: [['batchName', '批次'], ['sourceLabel', '来源'], ['productName', '商品'], ['quantity', '数量'], ['totalPrice', '销售额'], ['consumedCost', '销售成本'], ['grossProfit', '销售利润（未扣费用）'], ['sellerUsername', '卖出人'], ['occurredAt', '发生时间'], ['settled', '已结算']],
     profit: [['batchName', '批次'], ['salesTotal', '销售额'], ['expenseTotal', '费用'], ['costTotal', '销售成本'], ['profitTotal', '利润'], ['settledSales', '已结算销售额'], ['unsettledSales', '待结算销售额']],
     members: [['batchName', '批次'], ['username', '成员'], ['salesQuantity', '销售数量'], ['salesTotal', '销售额'], ['costTotal', '销售成本'], ['expenseTotal', '费用支付'], ['purchaseTotal', '采购支付'], ['contribution', '贡献额']],
     unsettled: [['batchName', '批次'], ['saleCount', '未结算销售笔数'], ['saleTotal', '未结算销售额'], ['expenseCount', '未结算费用笔数'], ['expenseTotal', '未结算费用'], ['unsettledProfit', '未结算毛利']],

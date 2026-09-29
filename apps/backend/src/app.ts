@@ -14,6 +14,7 @@ import { registerProductGroupRoutes } from './product-groups.js';
 import { registerListingRoutes } from './listings.js';
 import { registerInventoryRoutes } from './inventory.js';
 import { registerSalesExpenseRoutes } from './sales-expenses.js';
+import { registerQuickSaleRoutes } from './quick-sales.js';
 import { registerSettlementRoutes } from './settlements.js';
 import { registerReportRoutes } from './reports.js';
 import { clearSessionCookie, SESSION_COOKIE_NAME, setSessionCookie } from './auth-session.js';
@@ -143,6 +144,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerListingRoutes(app);
   await registerInventoryRoutes(app);
   await registerSalesExpenseRoutes(app);
+  await registerQuickSaleRoutes(app);
   await registerSettlementRoutes(app);
   await registerReportRoutes(app);
   return app;

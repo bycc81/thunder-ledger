@@ -78,7 +78,7 @@ async function exportCsv() {
 }
 function rowEntries(row: Record<string, string | number | boolean | null>) {
   const labels: Record<string, string> = {
-    batchName: '批次', productName: '商品', quantity: '数量', totalPrice: '销售额', consumedCost: '销售成本',
+    batchName: '批次', sourceLabel: '来源', productName: '商品', quantity: '数量', totalPrice: '销售额', consumedCost: '销售成本',
     grossProfit: '销售利润（未扣费用）', sellerUsername: '卖出人', occurredAt: '发生时间', settled: '已结算',
     purchaseQuantity: '采购数量', soldQuantity: '销售数量', adjustedQuantity: '减少库存', availableQuantity: '可卖数量',
     purchaseCost: '采购成本', soldCost: '销售成本', adjustedCost: '减少成本', remainingCost: '剩余成本',
@@ -87,7 +87,7 @@ function rowEntries(row: Record<string, string | number | boolean | null>) {
     contribution: '贡献额', purchaseTotal: '采购支付', saleCount: '未结算销售笔数', saleTotal: '未结算销售额',
     expenseCount: '未结算其他费用笔数', unsettledProfit: '未结算毛利',
   };
-  const hiddenKeys = new Set(['batchId', 'productId', 'saleId', 'userId', 'reportRowId']);
+  const hiddenKeys = new Set(['batchId', 'productId', 'saleId', 'userId', 'reportRowId', 'createdAt', 'source']);
   return Object.entries(row).filter(([key]) => !key.endsWith('Cents') && !hiddenKeys.has(key)).map(([key, value]) => ({
     key, label: labels[key] ?? key, value: key === 'occurredAt' && value ? formatDateTime(String(value)) : key === 'settled' ? (value ? '是' : '否') : String(value ?? '--'),
   }));

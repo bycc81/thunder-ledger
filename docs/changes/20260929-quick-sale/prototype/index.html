@@ -1,0 +1,394 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>快速售出原型</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef2f8; color: #172033; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .phone { width: min(100%, 430px); min-height: 100vh; margin: auto; padding-bottom: 28px; background: #f5f7fb; }
+  .topbar { position: sticky; top: 0; z-index: 5; display: flex; height: 56px; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #e4e8f0; background: #fff; }
+  .topbar strong { font-size: 16px; }
+  .back { display: inline-flex; min-height: 44px; align-items: center; gap: 4px; margin-left: -8px; padding: 0 8px; border: 0; background: transparent; color: #3657c8; font: inherit; }
+  .content { padding: 16px; }
+  h2 { margin: 22px 0 8px; font-size: 15px; }
+  .card { overflow: hidden; border-radius: 10px; background: #fff; box-shadow: 0 1px 0 #e4e8f0; }
+  .field { display: flex; min-height: 50px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #edf0f5; }
+  .field:last-child { border-bottom: 0; }
+  .field > label { color: #536078; }
+  .field input, .field select { min-height: 38px; padding: 0 8px; border: 1px solid #d7dde8; border-radius: 6px; background: #fff; color: #172033; text-align: right; font: inherit; }
+  .field textarea { width: 100%; min-height: 60px; padding: 8px; border: 1px solid #d7dde8; border-radius: 6px; font: inherit; }
+  .money { width: 128px; }
+  .primary-btn { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: #3657c8; color: #fff; font: inherit; font-weight: 600; }
+  .ghost-btn:disabled { border-color: #e2e6ef; background: #f2f4f9; color: #aab2c3; }\n  .ghost-btn { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 6px; padding: 0 14px; border: 1px solid #c9d2e6; border-radius: 10px; background: #fff; color: #3657c8; font: inherit; }
+  .compact-btn { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; border: 1px solid #c9d2e6; border-radius: 8px; background: #fff; color: #3657c8; font: inherit; font-size: 13px; }
+  .icon-btn { display: inline-flex; width: 36px; height: 36px; align-items: center; justify-content: center; border: 0; border-radius: 8px; background: transparent; color: #b42318; }
+  .danger-btn { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: center; gap: 6px; border: 1px solid #e8b8b2; border-radius: 10px; background: #fff7f6; color: #b42318; font: inherit; }
+  .danger-text { color: #b42318; }
+  .item-card { margin-top: 12px; overflow: hidden; border-radius: 10px; background: #fff; box-shadow: 0 1px 0 #e4e8f0; }
+  .item-head { display: flex; min-height: 46px; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #edf0f5; }
+  .item-title { font-weight: 600; }
+  .stepper { display: inline-flex; align-items: center; gap: 10px; }
+  .stepper button { width: 36px; height: 36px; border: 1px solid #c9d2e6; border-radius: 6px; background: #fff; color: #172033; font-size: 18px; line-height: 1; }
+  .stepper button:disabled { color: #c3cad8; }
+  .stepper output { min-width: 28px; text-align: center; font-weight: 600; }
+  .inv-list { padding: 6px 12px 10px; }
+  .inv-item { display: flex; min-height: 50px; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid #f0f2f7; }
+  .inv-item:first-child { border-top: 0; }
+  .inv-name small { display: block; color: #71809a; font-size: 12px; }
+  .inv-del { min-height: 40px; padding: 0 6px; border: 0; background: transparent; color: #b42318; }
+  .switch { position: relative; width: 46px; height: 26px; border: 0; border-radius: 13px; background: #d4dae6; transition: background .15s; }
+  .switch[aria-checked="true"] { background: #3657c8; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .switch[aria-checked="true"]::after { left: 23px; }
+  .mask { position: fixed; inset: 0; z-index: 20; display: none; background: rgba(15,23,42,.45); }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; max-width: 430px; margin: 0 auto; padding: 16px 16px 22px; border-radius: 14px 14px 0 0; background: #fff; transform: translateY(100%); transition: transform .2s; }
+  .sheet.open { transform: translateY(0); }
+  .sheet h3 { margin: 0 0 10px; font-size: 16px; }
+  .pick-item { display: flex; min-height: 48px; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #f0f2f7; }
+  .pick-item small { display: block; color: #71809a; font-size: 12px; }
+  .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .notice { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: #edf1ff; color: #2949aa; }
+  .hidden { display: none; }
+  .preview { display: flex; justify-content: space-between; padding: 12px; }
+  .preview b { text-align: right; }
+  .summary { padding: 16px; border-radius: 12px; background: #fff; box-shadow: 0 1px 0 #e4e8f0; }
+  .summary-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  h1 { margin: 6px 0 0; font-size: 20px; }
+  .price { font-size: 22px; font-weight: 800; white-space: nowrap; }
+  .tag { display: inline-flex; min-height: 23px; align-items: center; padding: 1px 7px; border-radius: 4px; background: #fff6dc; color: #a66200; font-size: 12px; }
+  .tag.green { background: #e6f6ec; color: #168246; }
+  .row { display: flex; min-height: 50px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #edf0f5; }
+  .row:last-child { border-bottom: 0; }
+  .row span { color: #62708a; }
+  .row b { text-align: right; white-space: nowrap; }
+  .negative { color: #b42318; }
+  .positive { color: #168246; }
+</style>
+</head>
+<body>
+<main class="phone">
+
+  <!-- ============ 快速售出表单 ============ -->
+  <section id="formView" data-ai-id="quick-sale-form-page">
+    <header class="topbar" data-ai-id="quick-sale-form-topbar">
+      <button class="back" type="button" data-ai-id="quick-sale-form-back" onclick="history.back()">‹ 返回交易</button>
+      <strong>快速售出</strong>
+      <span aria-hidden="true"></span>
+    </header>
+    <div class="content">
+      <p class="notice" data-ai-id="quick-sale-form-notice">不需要上架，直接登记一笔售出；可选关联库存扣减数量与成本，并进入结算。</p>
+
+      <h2>整单信息</h2>
+      <section class="card" data-ai-id="quick-sale-form-order">
+        <div class="field"><label for="totalPrice">成交总价（元）</label><input id="totalPrice" class="money" data-ai-id="quick-sale-total-price" value="399.00" inputmode="decimal"></div>
+        <div class="field"><label for="seller">卖出人</label><select id="seller" data-ai-id="quick-sale-seller-select"><option>我（Myself）</option><option>阿宁</option></select></div>
+        <div class="field"><label for="occurredAt">成交时间</label><input id="occurredAt" data-ai-id="quick-sale-occurred-at" value="2026-09-29 14:30"></div>
+        <div class="field"><label for="channel">销售渠道</label><input id="channel" data-ai-id="quick-sale-channel" placeholder="如：闲鱼（可选）"></div>
+        <div class="field">
+          <label>平台手续费</label>
+          <span style="display:flex;gap:6px;align-items:center">
+            <select data-ai-id="quick-sale-fee-mode"><option value="none">无</option><option value="percentage">按比例</option><option value="amount">按金额</option></select>
+            <input id="feeValue" class="money" data-ai-id="quick-sale-fee-value" placeholder="比例%或金额" style="width:90px" disabled>
+          </span>
+        </div>
+        <div class="field"><label for="note">备注</label><textarea id="note" data-ai-id="quick-sale-note" placeholder="可选"></textarea></div>
+      </section>
+
+      <h2>商品（可多行）</h2>
+      <div id="itemList" data-ai-id="quick-sale-item-list"></div>
+      <div style="margin-top:12px">
+        <button class="ghost-btn" type="button" style="width:100%" data-ai-id="quick-sale-add-item" onclick="addItem()">＋ 添加商品行</button>
+      </div>
+
+      <div class="card preview" style="margin-top:14px" data-ai-id="quick-sale-cost-preview">
+        <span>预计成本合计</span><b id="costPreview">¥0.00</b>
+      </div>
+      <div class="card preview" style="margin-top:8px" data-ai-id="quick-sale-received-preview">
+        <span>预计实收</span><b id="receivedPreview">¥399.00</b>
+      </div>
+
+      <div style="margin-top:16px">
+        <button class="primary-btn" type="button" data-ai-id="quick-sale-submit" onclick="save()">保存并扣减库存</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 快速售出详情 ============ -->
+  <section id="detailView" class="hidden" data-ai-id="quick-sale-detail-page">
+    <header class="topbar" data-ai-id="quick-sale-detail-topbar">
+      <button class="back" type="button" data-ai-id="quick-sale-detail-back" onclick="showForm()">‹ 返回交易</button>
+      <strong>快速售出详情</strong>
+      <span aria-hidden="true"></span>
+    </header>
+    <div class="content">
+      <section class="summary" data-ai-id="quick-sale-detail-summary">
+        <div class="summary-head">
+          <div>
+            <span class="tag green" data-ai-id="quick-sale-detail-status">待结账</span>&nbsp;<span class="tag" data-ai-id="quick-sale-detail-source">快速售出</span>
+            <h1 id="detailTitle">专辑+小卡 set</h1>
+            <p class="sub" style="margin-top:4px;color:#71809a;font-size:12px" data-ai-id="quick-sale-detail-time">2026-09-29 14:30 成交</p>
+          </div>
+          <div class="price" id="detailPrice">¥399.00</div>
+        </div>
+      </section>
+
+      <h2>收款</h2>
+      <section class="card" data-ai-id="quick-sale-detail-payment">
+        <div class="row"><span>成交总价</span><b id="dTotal">¥399.00</b></div>
+        <div class="row"><span>平台手续费</span><b class="negative" id="dFee">-¥0.00</b></div>
+        <div class="row"><span>实际收款</span><b class="positive" id="dReceived">¥399.00</b></div>
+        <div class="row"><span>卖出人</span><b>我（Myself）</b></div>
+        <div class="row"><span>销售渠道</span><b>闲鱼</b></div>
+      </section>
+
+      <h2>成本</h2>
+      <section class="card" data-ai-id="quick-sale-detail-cost">
+        <div class="row"><span>本单成本（输入/带入）</span><b id="dTotalCost">¥120.00</b></div>
+        <div class="row"><span>库存账消耗成本（系统）</span><b id="dLedgerCost">¥120.00</b></div>
+        <div class="row"><span>毛利（未扣其他费用）</span><b class="positive" id="dProfit">¥279.00</b></div>
+      </section>
+
+      <h2>商品明细</h2>
+      <div id="detailItems" data-ai-id="quick-sale-detail-items"></div>
+
+      <h2>结算</h2>
+      <button class="card row" style="width:100%;border:0;text-align:left" type="button" data-ai-id="quick-sale-detail-settlement-open" onclick="alert('原型：待结账时显示状态；已结账时跳转对应账单详情。')">
+        <span><strong>待结账</strong><br><small style="color:#71809a">尚未纳入阶段账单</small></span><span style="color:#8b96aa">›</span>
+      </button>
+      <div style="margin-top:16px">
+        <button class="danger-btn" type="button" data-ai-id="quick-sale-detail-reverse" onclick="reverseSale()">撤销这笔售出</button>
+      </div>
+      <p style="margin-top:22px;color:#71809a;font-size:12px;text-align:center">原型仅展示结构与交互，不连接真实数据。</p>
+    </div>
+  </section>
+
+  <!-- ============ 关联库存选择弹层 ============ -->
+  <div class="mask" id="pickerMask" data-ai-id="inventory-picker-popup" onclick="closePicker()"></div>
+  <section class="sheet" id="pickerSheet" data-ai-id="inventory-picker-sheet">
+    <h3>选择要关联的库存商品</h3>
+    <div id="pickerList"></div>
+    <div class="sheet-actions">
+      <button class="ghost-btn" type="button" data-ai-id="inventory-picker-cancel" onclick="closePicker()">取消</button>
+      <button class="primary-btn" type="button" data-ai-id="inventory-picker-confirm" onclick="confirmPicker()">确认关联</button>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ---------- 模拟数据 ----------
+const INVENTORY = [
+  { id: 'inv-1', name: '专辑', available: 1, unitCost: 80 },
+  { id: 'inv-2', name: '小卡', available: 3, unitCost: 40 },
+  { id: 'inv-3', name: '应援棒', available: 2, unitCost: 60 },
+];
+const PRODUCTS = ['专辑', '小卡', '应援棒', '海报', '小卡 set'];
+let seq = 1;
+let items = [];
+
+function money(n) { return '¥' + n.toFixed(2); }
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function newItem(name = '') {
+  return { id: 'qsi-' + (seq++), productName: name, quantity: 1, manualCost: 0, linkEnabled: false, consumptions: [] };
+}
+
+function addItem(name = '') {
+  items.push(newItem(name));
+  renderItems();
+}
+
+function removeItem(id) { items = items.filter((i) => i.id !== id); renderItems(); }
+function removeItemConfirm(id) { if (confirm('删除这行商品？')) removeItem(id); }
+function removeConsumptionConfirm(itemId, invId) { if (confirm('移除这项关联库存？')) removeConsumption(itemId, invId); }
+function reverseSale() { if (confirm('撤销这笔售出？将恢复关联库存并回退成本。已纳入账单的单据禁止撤销。')) alert('原型：已撤销，关联库存已恢复。'); }
+
+// 该商品当前可用库存 = 原始可用 - 已被其它行关联的总量
+function effectiveAvailable(invId, exceptItemId) {
+  let used = 0;
+  for (const item of items) {
+    if (item.id === exceptItemId) continue;
+    for (const c of item.consumptions) if (c.invId === invId) used += c.qty;
+  }
+  const inv = INVENTORY.find((i) => i.id === invId);
+  return Math.max(0, inv.available - used);
+}
+
+// ---------- 商品行渲染 ----------
+function renderItems() {
+  const box = document.getElementById('itemList');
+  if (!items.length) { box.innerHTML = '<div class="card notice" style="margin:0">还没有商品行，点击下方“添加商品行”。</div>'; refreshSummary(); return; }
+  box.innerHTML = items.map((item) => {
+    const rows = item.consumptions.map((c) => {
+      const inv = INVENTORY.find((i) => i.id === c.invId);
+      const max = effectiveAvailable(c.invId, item.id);
+      return `<div class="inv-item" data-ai-id="quick-sale-item-${item.id}-inventory-item-${c.invId}">
+        <span class="inv-name">${esc(inv ? inv.name : '')}<small>可用 ${max} 件 · 单价成本 ${money(inv ? inv.unitCost : 0)}</small></span>
+        <span class="stepper" data-ai-id="quick-sale-item-${item.id}-inventory-item-${c.invId}-qty">
+          <button type="button" aria-label="减少" onclick="stepInv('${item.id}','${c.invId}',-1)">−</button>
+          <output>${c.qty}</output>
+          <button type="button" aria-label="增加" onclick="stepInv('${item.id}','${c.invId}',1)">＋</button>
+        </span>
+        <button class="icon-btn" type="button" aria-label="移除关联" data-ai-id="quick-sale-item-${item.id}-inventory-item-${c.invId}-remove" onclick="removeConsumptionConfirm('${item.id}','${c.invId}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>`;
+    }).join('');
+    return `<div class="item-card" data-ai-id="quick-sale-item-${item.id}">
+      <div class="item-head">
+        <span class="item-title">商品 ${item.id.slice(-2)}</span>
+        <button class="icon-btn" type="button" aria-label="删除商品行" data-ai-id="quick-sale-item-${item.id}-remove" onclick="removeItemConfirm('${item.id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg></button>
+      </div>
+      <div class="field" style="align-items:flex-start;flex-direction:column">
+        <label>商品名</label>
+        <input style="width:100%;text-align:left" list="productOptions" data-ai-id="quick-sale-item-${item.id}-name" value="${esc(item.productName)}" placeholder="可自由填写，或从已有商品选择" oninput="itemName('${item.id}', this.value)">
+        <datalist id="productOptions">${PRODUCTS.map((p) => '<option>' + esc(p) + '</option>').join('')}</datalist>
+      </div>
+      <div class="field"><label>售出数量</label><span class="stepper" data-ai-id="quick-sale-item-${item.id}-quantity"><button type="button" aria-label="减少" onclick="stepQty('${item.id}',-1)">−</button><output>${item.quantity}</output><button type="button" aria-label="增加" onclick="stepQty('${item.id}',1)">＋</button></span></div>
+      <div class="field"><label for="cost_${item.id}">成本价（元）</label><span style="display:flex;gap:8px;align-items:center"><input id="cost_${item.id}" class="money" data-ai-id="quick-sale-item-${item.id}-cost" value="${item.manualCost.toFixed(2)}" inputmode="decimal" oninput="itemCost('${item.id}', this.value)"><button class="compact-btn" type="button" data-ai-id="quick-sale-item-${item.id}-cost-fill" onclick="fillCost('${item.id}')" ${item.linkEnabled && item.consumptions.length ? '' : 'disabled'}>按库存成本</button></span></div>
+      <div class="field">
+        <label>关联库存</label>
+        <span style="display:flex;gap:10px;align-items:center">
+          <span id="invCount_${item.id}" style="color:#71809a;font-size:12px"></span>
+          <button class="switch" type="button" role="switch" aria-checked="${item.linkEnabled}" data-ai-id="quick-sale-item-${item.id}-link-toggle" onclick="toggleLink('${item.id}')" aria-label="关联库存开关"></button>
+        </span>
+      </div>
+      <div class="inv-list" data-ai-id="quick-sale-item-${item.id}-inventory-list">${rows || '<span style="color:#8b96aa;font-size:12px">未关联库存</span>'}
+        ${item.linkEnabled ? `<div style="margin-top:8px"><button class="compact-btn" type="button" data-ai-id="quick-sale-item-${item.id}-inventory-pick" onclick="openPicker('${item.id}')">＋ 添加关联库存</button></div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  refreshSummary();
+}
+
+function itemName(id, v) { const it = items.find((i) => i.id === id); if (it) it.productName = v; refreshSummary(); }
+function itemCost(id, v) { const it = items.find((i) => i.id === id); const n = parseFloat(v); if (it && !Number.isNaN(n)) it.manualCost = n; refreshSummary(); }
+function stepQty(id, d) { const it = items.find((i) => i.id === id); if (it) it.quantity = Math.max(1, it.quantity + d); renderItems(); }
+function toggleLink(id) { const it = items.find((i) => i.id === id); if (it) { it.linkEnabled = !it.linkEnabled; if (!it.linkEnabled) it.consumptions = []; } renderItems(); }
+
+// ---------- 关联库存 ----------
+let pickerFor = null, pickerChecked = [];
+function openPicker(id) {
+  pickerFor = id;
+  const it = items.find((i) => i.id === id);
+  pickerChecked = it ? it.consumptions.map((c) => c.invId) : [];
+  renderPicker();
+  document.getElementById('pickerMask').style.display = 'block';
+  document.getElementById('pickerSheet').classList.add('open');
+}
+function closePicker() { document.getElementById('pickerMask').style.display = 'none'; document.getElementById('pickerSheet').classList.remove('open'); pickerFor = null; }
+function renderPicker() {
+  const list = document.getElementById('pickerList');
+  list.innerHTML = INVENTORY.map((inv) => {
+    const max = effectiveAvailable(inv.id, pickerFor);
+    const disabled = max <= 0;
+    const checked = pickerChecked.includes(inv.id);
+    return `<label class="pick-item" data-ai-id="inventory-picker-item-${inv.id}">
+      <input type="checkbox" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''} data-ai-id="inventory-picker-item-${inv.id}-check" onchange="togglePick('${inv.id}', this.checked)">
+      <span>${esc(inv.name)}<small>可用 ${max} 件</small></span>
+    </label>`;
+  }).join('');
+}
+function togglePick(invId, checked) { if (checked) { if (!pickerChecked.includes(invId)) pickerChecked.push(invId); } else pickerChecked = pickerChecked.filter((x) => x !== invId); }
+function confirmPicker() {
+  const it = items.find((i) => i.id === pickerFor);
+  if (it) {
+    it.consumptions = pickerChecked.map((invId) => {
+      const existing = it.consumptions.find((c) => c.invId === invId);
+      return { invId, qty: existing ? existing.qty : 1 };
+    });
+  }
+  closePicker(); renderItems();
+}
+function stepInv(itemId, invId, d) {
+  const it = items.find((i) => i.id === itemId); if (!it) return;
+  const c = it.consumptions.find((x) => x.invId === invId); if (!c) return;
+  const max = effectiveAvailable(invId, itemId);
+  c.qty = Math.min(max, Math.max(1, c.qty + d));
+  renderItems();
+}
+function removeConsumption(itemId, invId) { const it = items.find((i) => i.id === itemId); if (it) { it.consumptions = it.consumptions.filter((c) => c.invId !== invId); } renderItems(); }
+
+// ---------- 汇总 ----------
+function fillCost(id) {
+  const it = items.find((i) => i.id === id); if (!it || !it.linkEnabled || !it.consumptions.some((c) => c.qty > 0)) return;
+  it.manualCost = it.consumptions.reduce((sum, c) => { const inv = INVENTORY.find((i) => i.id === c.invId); return sum + (inv ? inv.unitCost * c.qty : 0); }, 0) * it.quantity;
+  const input = document.getElementById('cost_' + id); if (input) input.value = it.manualCost.toFixed(2);
+  refreshSummary();
+}
+function computeCost(it) { return { manual: it.manualCost, total: it.manualCost }; }
+function refreshSummary() {
+  let totalCost = 0;
+  for (const it of items) { const c = computeCost(it); totalCost += c.total; document.getElementById('invCount_' + it.id).textContent = it.consumptions.length ? it.consumptions.length + ' 项' : ''; }
+  document.getElementById('costPreview').textContent = money(totalCost);
+  const price = parseFloat(document.getElementById('totalPrice').value) || 0;
+  const fee = calcFee(price);
+  document.getElementById('receivedPreview').textContent = money(Math.max(0, price - fee));
+}
+function calcFee(price) {
+  const mode = document.getElementById('quick-sale-fee-mode').value;
+  const v = parseFloat(document.getElementById('feeValue').value);
+  if (mode === 'percentage' && v > 0) return price * v / 100;
+  if (mode === 'amount' && v > 0) return v;
+  return 0;
+}
+
+// ---------- 保存 / 详情 ----------
+function save() {
+  const price = parseFloat(document.getElementById('totalPrice').value);
+  if (!items.length) { alert('请至少添加一个商品行'); return; }
+  if (!(price >= 0)) { alert('请填写有效的成交总价'); return; }
+  for (const it of items) {
+    if (!it.productName.trim()) { alert('请填写商品名'); return; }
+    for (const c of it.consumptions) {
+      const inv = INVENTORY.find((i) => i.id === c.invId);
+      const max = effectiveAvailable(c.invId, it.id);
+      if (!inv || c.qty < 1 || c.qty > max) { alert('关联库存数量超出可用范围'); return; }
+    }
+    if (it.consumptions.length) {
+      const mismatches = it.consumptions.filter((c) => c.qty !== it.quantity).map((c) => {
+        const inv = INVENTORY.find((i) => i.id === c.invId);
+        return (inv ? inv.name : '') + ' ×' + c.qty;
+      });
+      if (mismatches.length) {
+        const ok = confirm('商品“' + it.productName + '”售出 ' + it.quantity + ' 件，但关联库存为 ' + mismatches.join('、') + '，数量不一致。是否仍要继续保存？');
+        if (!ok) return;
+      }
+    }
+  }
+  document.getElementById('detailTitle').textContent = items.map((i) => i.productName).join(' + ') + ' · ' + items.reduce((s, i) => s + i.quantity, 0) + ' 件';
+  document.getElementById('dTotal').textContent = money(price);
+  document.getElementById('dFee').textContent = '-' + money(calcFee(price));
+  document.getElementById('dReceived').textContent = money(Math.max(0, price - calcFee(price)));
+  let totalCost = 0, ledgerCost = 0;
+  for (const it of items) { const c = computeCost(it); totalCost += c.total; ledgerCost += it.consumptions.reduce((s, x) => { const inv = INVENTORY.find((i) => i.id === x.invId); return s + (inv ? inv.unitCost * x.qty : 0); }, 0); }
+  document.getElementById('dTotalCost').textContent = money(totalCost);
+  document.getElementById('dLedgerCost').textContent = money(ledgerCost);
+  document.getElementById('dProfit').textContent = money(Math.max(0, price - calcFee(price)) - totalCost);
+  document.getElementById('detailItems').innerHTML = items.map((it) => {
+    const c = computeCost(it);
+    const invText = it.consumptions.map((x) => { const inv = INVENTORY.find((i) => i.id === x.invId); return esc(inv.name) + ' ×' + x.qty; }).join('、') || '未关联库存';
+    return `<div class="card row" style="border-radius:10px;margin-top:8px">
+      <span><strong>${esc(it.productName)}</strong> ×${it.quantity}<br><small style="color:#71809a">关联库存：${invText}</small></span>
+      <b>${money(c.total)}</b>
+    </div>`;
+  }).join('');
+  document.getElementById('detailPrice').textContent = money(price);
+  showDetail();
+}
+function showDetail() { document.getElementById('formView').classList.add('hidden'); document.getElementById('detailView').classList.remove('hidden'); window.scrollTo(0, 0); }
+function showForm() { document.getElementById('detailView').classList.add('hidden'); document.getElementById('formView').classList.remove('hidden'); }
+
+document.getElementById('quick-sale-fee-mode').addEventListener('change', (e) => {
+  const disabled = e.target.value === 'none';
+  document.getElementById('feeValue').disabled = disabled;
+  refreshSummary();
+});
+document.getElementById('feeValue').addEventListener('input', refreshSummary);
+document.getElementById('totalPrice').addEventListener('input', refreshSummary);
+
+addItem('专辑');
+addItem('小卡');
+</script>
+</body>
+</html>
