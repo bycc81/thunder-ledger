@@ -22,6 +22,8 @@ const pendingDelete = ref<Batch | null>(null);
 const showDeleteConfirm = ref(false);
 
 const roleText = (role: WorkspaceRole | BatchMember['role']) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role]);
+const batchRoleText = (batch: Batch) => roleText(batch.memberRole ?? batch.role);
+const workspaceAdminText = (batch: Batch) => batch.workspaceRole === 'admin' ? ' · 工作区管理员' : '';
 const formatDate = formatDateTime;
 const filteredBatches = computed(() => store.batches.filter((batch) => {
   const keyword = search.value.trim().toLowerCase();
@@ -71,7 +73,7 @@ onMounted(() => { if (!store.workspaces.length) void store.load(); });
       </van-empty>
       <div v-else class="batch-list" data-ai-id="batch-list">
         <article v-for="batch in filteredBatches" :key="batch.id" class="batch-item" :data-ai-id="`batch-item-${batch.id}`" tabindex="0" @click="router.push(`/batches/${batch.id}`)" @keydown.enter="router.push(`/batches/${batch.id}`)">
-          <div class="batch-main"><span class="batch-title">{{ batch.name }}</span><span class="batch-meta">创建于 {{ formatDate(batch.created_at) }} · {{ roleText(batch.role) }}</span></div>
+          <div class="batch-main"><span class="batch-title">{{ batch.name }}</span><span class="batch-meta">创建于 {{ formatDate(batch.created_at) }} · {{ batchRoleText(batch) }}{{ workspaceAdminText(batch) }}</span></div>
           <div class="batch-side" @click.stop><van-popover v-if="batch.role === 'owner' || store.canManageWorkspace" placement="left-start" :actions="[{ text: '删除批次', danger: true }]" @select="requestDelete(batch)"><template #reference><van-button class="more-button tl-button--compact" icon="ellipsis" plain type="default" :loading="deletingId === batch.id" :data-ai-id="`batch-more-${batch.id}`" /></template></van-popover><van-icon name="arrow" class="batch-arrow" /></div>
         </article>
       </div>

@@ -14,6 +14,8 @@ const emit = defineEmits<{
 const store = useWorkspaceStore();
 const recentBatches = computed(() => store.batches.slice(0, 3));
 const roleText = (role: WorkspaceRole | BatchMember['role']) => ({ owner: '所有者', admin: '管理员', editor: '编辑者', viewer: '查看者' }[role]);
+const batchRoleText = (batch: Batch) => roleText(batch.memberRole ?? batch.role);
+const workspaceAdminText = (batch: Batch) => batch.workspaceRole === 'admin' ? ' · 工作区管理员' : '';
 const formatDate = formatDateTime;
 </script>
 
@@ -44,7 +46,7 @@ const formatDate = formatDateTime;
       </van-empty>
       <div v-else class="overview-list">
         <article v-for="batch in recentBatches" :key="batch.id" class="overview-batch-item" :data-ai-id="`batch-item-${batch.id}`" tabindex="0" @click="emit('openBatch', batch)" @keydown.enter="emit('openBatch', batch)">
-          <div class="overview-batch-main"><span class="overview-batch-title">{{ batch.name }}</span><span class="overview-batch-meta">创建于 {{ formatDate(batch.created_at) }} · {{ roleText(batch.role) }}</span></div>
+          <div class="overview-batch-main"><span class="overview-batch-title">{{ batch.name }}</span><span class="overview-batch-meta">创建于 {{ formatDate(batch.created_at) }} · {{ batchRoleText(batch) }}{{ workspaceAdminText(batch) }}</span></div>
           <div class="overview-batch-side"><van-tag :type="batch.status === 'open' ? 'success' : 'default'">{{ batch.status === 'open' ? '开放' : '已关闭' }}</van-tag><van-icon name="arrow" /></div>
         </article>
       </div>
