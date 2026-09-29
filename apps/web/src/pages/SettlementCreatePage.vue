@@ -10,6 +10,9 @@ const router = useRouter()
 const batchId = computed(() => String(route.params.id))
 const members = ref<SettlementMember[]>([])
 const sales = ref<SettlementSale[]>([])
+const transactions = ref<SettlementSale[]>([])
+const quickSaleList = computed(() => transactions.value.filter((sale) => sale.source === 'quick_sale'))
+const selectedQuickSales = ref<string[]>([])
 const expenses = ref<SettlementExpense[]>([])
 const selectedSales = ref<string[]>([])
 const selectedExpenses = ref<string[]>([])
@@ -25,6 +28,7 @@ const submitting = ref(false)
 const showConfirm = ref(false)
 
 const selectedSaleSet = computed(() => new Set(selectedSales.value))
+const selectedQuickSaleSet = computed(() => new Set(selectedQuickSales.value))
 function moneyToCents(value: string | null | undefined) {
   if (typeof value !== 'string') return 0
   const [whole, fraction = ''] = value.split('.')
@@ -64,9 +68,10 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const { data } = await api.get<{ members: SettlementMember[]; sales: SettlementSale[]; expenses: SettlementExpense[] }>(`/batches/${batchId.value}/settlements/draft`)
+    const { data } = await api.get<{ members: SettlementMember[]; sales: SettlementSale[]; transactions: SettlementSale[]; expenses: SettlementExpense[] }>(`/batches/${batchId.value}/settlements/draft`)
     members.value = data.members
     sales.value = data.sales
+    transactions.value = data.transactions ?? []
     expenses.value = data.expenses
     equalProfits()
   } catch {
@@ -78,25 +83,30 @@ async function load() {
 
 function selectAll() {
   selectedSales.value = sales.value.map((sale) => sale.id)
+  selectedQuickSales.value = quickSaleList.value.map((sale) => sale.id)
 }
 
 function clearAll() {
   selectedSales.value = []
+  selectedQuickSales.value = []
 }
 
 function isExpenseSelected(expense: SettlementExpense) {
-  return expense.saleId ? selectedSaleSet.value.has(expense.saleId) : selectedExpenses.value.includes(expense.id)
+  if (expense.saleId) return selectedSaleSet.value.has(expense.saleId)
+  if (expense.quickSaleId) return selectedQuickSaleSet.value.has(expense.quickSaleId)
+  return selectedExpenses.value.includes(expense.id)
 }
 
 function updateExpense(expense: SettlementExpense, checked: boolean) {
-  if (expense.saleId) return
+  if (expense.saleId || expense.quickSaleId) return
   selectedExpenses.value = checked ? [...new Set([...selectedExpenses.value, expense.id])] : selectedExpenses.value.filter((id) => id !== expense.id)
 }
 
 function payload() {
-  const automaticExpenses = expenses.value.filter((expense) => expense.saleId && selectedSaleSet.value.has(expense.saleId)).map((expense) => expense.id)
+  const automaticExpenses = expenses.value.filter((expense) => (expense.saleId && selectedSaleSet.value.has(expense.saleId)) || (expense.quickSaleId && selectedQuickSaleSet.value.has(expense.quickSaleId))).map((expense) => expense.id)
   return {
     saleIds: selectedSales.value,
+    quickSaleIds: selectedQuickSales.value,
     expenseIds: [...new Set([...selectedExpenses.value, ...automaticExpenses])],
     profitShares: members.value.map((member) => ({ userId: member.id, percentage: Number(profits.value[member.id] ?? '') }))
   }
@@ -115,13 +125,13 @@ function profitBasisPoints(value: string) {
 
 async function next() {
   if (step.value === 1) {
-    if (!selectedSales.value.length) {
+    if (!selectedSales.value.length && !selectedQuickSales.value.length) {
       showFailToast('请至少选择一笔销售')
       return
     }
     submitting.value = true
     try {
-      const { data } = await api.post<{ costTotal: string; costShares: Array<{ userId: string; amount: string }> }>(`/batches/${batchId.value}/settlements/recommendation`, { saleIds: selectedSales.value })
+      const { data } = await api.post<{ costTotal: string; costShares: Array<{ userId: string; amount: string }> }>(`/batches/${batchId.value}/settlements/recommendation`, { saleIds: selectedSales.value, quickSaleIds: selectedQuickSales.value })
       costTotal.value = data.costTotal
       for (const share of data.costShares) costs.value[share.userId] = share.amount
       step.value = 2
@@ -188,10 +198,11 @@ onMounted(load)
         <header class="section-head"><h2>本次销售</h2><div><button class="text-button" data-ai-id="settlement-sales-select-all" @click="selectAll">全选</button><button class="text-button" data-ai-id="settlement-sales-clear" @click="clearAll">清空</button></div></header>
         <div class="list" data-ai-id="settlement-sales-list">
           <label v-for="sale in sales" :key="sale.id" class="choice-row" :data-ai-id="`settlement-sale-${sale.id}`"><input v-model="selectedSales" type="checkbox" :value="sale.id"><span><strong>{{ sale.displayName || sale.productName }} · {{ sale.quantity }} 件</strong><small>{{ formatDateTime(sale.occurredAt) }} · {{ sale.sellerUsername }} 收款</small></span><b>¥{{ sale.totalPrice }}</b></label>
+          <label v-for="sale in quickSaleList" :key="sale.id" class="choice-row" :data-ai-id="`settlement-quick-sale-${sale.id}`"><input v-model="selectedQuickSales" type="checkbox" :value="sale.id"><span><strong><van-tag type="primary" plain size="medium">{{ sale.sourceLabel || '快速售出' }}</van-tag> {{ sale.productName }} · {{ sale.quantity }} 件</strong><small>{{ formatDateTime(sale.occurredAt) }} · {{ sale.sellerUsername }} 收款</small></span><b>¥{{ sale.totalPrice }}</b></label>
         </div>
         <header class="section-head"><h2>本次费用</h2></header>
         <div class="list" data-ai-id="settlement-expenses-list">
-          <label v-for="expense in expenses" :key="expense.id" class="choice-row" :class="{ disabled: expense.saleId && !selectedSaleSet.has(expense.saleId) }" :data-ai-id="`settlement-expense-${expense.id}`"><input type="checkbox" :checked="isExpenseSelected(expense)" :disabled="Boolean(expense.saleId)" @change="updateExpense(expense, ($event.target as HTMLInputElement).checked)"><span><strong>{{ expense.name }} ¥{{ expense.amount }}</strong><small>{{ expense.payerUsername }} 支付 · {{ expense.saleId ? '已关联销售' : '未关联销售' }}</small></span></label>
+          <label v-for="expense in expenses" :key="expense.id" class="choice-row" :class="{ disabled: (expense.saleId && !selectedSaleSet.has(expense.saleId)) || (expense.quickSaleId && !selectedQuickSaleSet.has(expense.quickSaleId)) }" :data-ai-id="`settlement-expense-${expense.id}`"><input type="checkbox" :checked="isExpenseSelected(expense)" :disabled="Boolean(expense.saleId || expense.quickSaleId)" @change="updateExpense(expense, ($event.target as HTMLInputElement).checked)"><span><strong>{{ expense.name }} ¥{{ expense.amount }}</strong><small>{{ expense.payerUsername }} 支付 · {{ expense.saleId ? '已关联销售' : expense.quickSaleId ? '已关联快速售出' : '未关联销售' }}</small></span></label>
         </div>
       </section>
       <section v-else-if="step === 2">

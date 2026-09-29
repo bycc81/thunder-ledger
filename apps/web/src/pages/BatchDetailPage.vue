@@ -30,7 +30,6 @@ const deletingBatch = ref(false);
 const showBatchDeleteConfirm = ref(false);
 
 const canManage = computed(() => Boolean(batch.value && (batch.value.role === 'owner' || store.canManageWorkspace)));
-const canEditInventory = computed(() => Boolean(batch.value && (batch.value.role === 'owner' || batch.value.role === 'editor' || store.canManageWorkspace)));
 const roleText = (role: BatchRole) => ({ owner: '所有者', editor: '编辑者', viewer: '查看者' }[role]);
 const formatDate = formatDateTime;
 const memberOptions = computed(() => store.members.filter((member) => !members.value.some((item) => item.id === member.id)).map((member) => ({ text: member.username, value: member.id })));
@@ -127,9 +126,9 @@ onMounted(load);
         <div class="summary-row"><span>创建时间</span><strong>{{ formatDate(batch.created_at) }}</strong></div>
         <div class="summary-row"><span>参与人</span><strong>{{ members.length }} 人</strong></div>
       </section>
-      <section class="detail-section" data-ai-id="batch-inventory-section"><div class="section-head"><h2>库存</h2><span v-if="!canEditInventory" class="readonly-label">只读</span></div><van-cell title="库存与采购" label="查看库存数量和采购记录" is-link clickable data-ai-id="batch-inventory-entry" @click="router.push(`/batches/${batch.id}/inventory`)" /></section>
-      <section class="detail-section" data-ai-id="batch-sales-section"><div class="section-head"><h2>交易</h2><span v-if="!canEditInventory" class="readonly-label">只读</span></div><van-cell title="交易记录" label="记录销售和费用" is-link clickable data-ai-id="batch-transactions-entry" @click="router.push(`/batches/${batch.id}/transactions`)" /></section>
-      <section class="detail-section" data-ai-id="batch-settlement-section"><div class="section-head"><h2>结算</h2><span v-if="!canManage" class="readonly-label">只读</span></div><van-cell title="协作台账与结算" label="创建阶段账单并查看应收应付" is-link clickable data-ai-id="batch-settlement-entry" @click="router.push(`/batches/${batch.id}/settlements`)" /></section>
+      <section class="detail-section quick-entry" data-ai-id="batch-inventory-section"><van-cell title="库存" label="查看库存、登记采购" is-link clickable data-ai-id="batch-inventory-entry" @click="router.push(`/batches/${batch.id}/inventory`)" /></section>
+      <section class="detail-section quick-entry" data-ai-id="batch-sales-section"><van-cell title="交易" label="记录销售与费用" is-link clickable data-ai-id="batch-transactions-entry" @click="router.push(`/batches/${batch.id}/transactions`)" /></section>
+      <section class="detail-section quick-entry" data-ai-id="batch-settlement-section"><van-cell title="结算" label="创建账单、查看应收应付" is-link clickable data-ai-id="batch-settlement-entry" @click="router.push(`/batches/${batch.id}/settlements`)" /></section>
       <section class="detail-section" data-ai-id="batch-member-list"><div class="section-head"><h2>批次成员</h2><van-button v-if="canManage" class="compact-button" type="primary" size="small" data-ai-id="participant-add" @click="showParticipant = true">添加参与人</van-button></div>
         <van-empty v-if="!members.length" description="暂无参与人" data-ai-id="batch-member-empty" />
         <div v-else class="member-list"><div v-for="member in members" :key="member.id" class="member-item" :data-ai-id="`batch-member-item-${member.id}`"><div class="member-main"><strong>{{ member.username }}</strong><span><van-tag :type="member.role === 'owner' ? 'primary' : member.role === 'editor' ? 'warning' : 'default'">{{ roleText(member.role) }}</van-tag><small>加入时间 {{ formatDate(member.created_at) }}</small></span></div><div v-if="member.role !== 'owner' && canManage" class="member-actions"><van-popover placement="top-end" :actions="[{ text: '编辑者' }, { text: '查看者' }]" @select="(action) => updateRole(member, action.text === '编辑者' ? 'editor' : 'viewer')"><template #reference><van-button class="member-action" size="small" plain :data-ai-id="`batch-member-role-${member.id}`">角色</van-button></template></van-popover><van-button class="member-action danger-action" size="small" plain type="danger" :loading="removingId === member.id" :data-ai-id="`batch-member-remove-${member.id}`" @click="requestRemoveParticipant(member)">移除</van-button></div></div></div>
@@ -165,11 +164,12 @@ onMounted(load);
 .summary-row span { color:#8993a7; font-size:12px; text-align:right; }
 .summary-row strong { min-width:0; color:#172033; font-size:14px; font-weight:600; }
 .detail-section { margin-bottom:24px; }
+.quick-entry { margin-bottom:12px; }
 .detail-section h2,.section-head h2 { margin:0; color:#172033; font-size:17px; }
 .detail-section > h2 { margin-bottom:8px; }
 .detail-section :deep(.van-cell) { min-height:64px; padding:12px; border-radius:9px; background:#fff; }.detail-section :deep(.van-cell__title) { color:#172033; font-size:15px; font-weight:600; }.detail-section :deep(.van-cell__value) { color:#536078; font-size:14px; }.name-edit-button { flex:0 0 auto; width:44px; min-width:44px; height:44px; min-height:44px; margin:-5px 0 3px -5px; padding:0; border:0; color:#3657c8; font-size:18px; }
 .section-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-.readonly-label { color:#71809a; font-size:12px; }.detail-section :deep(.van-cell__label) { margin-top:4px; color:#71809a; font-size:12px; }.detail-section :deep(.van-cell__right-icon) { color:#8993a7; }
+.detail-section :deep(.van-cell__label) { margin-top:4px; color:#71809a; font-size:12px; }.detail-section :deep(.van-cell__right-icon) { color:#8993a7; }
 .compact-button { min-height:var(--tl-button-secondary-height); padding:0 10px; }
 .member-list { overflow:hidden; border-radius:10px; background:#fff; }
 .member-item { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:72px; padding:12px; border-bottom:1px solid #e4e8f0; }

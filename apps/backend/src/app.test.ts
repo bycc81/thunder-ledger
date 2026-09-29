@@ -7,7 +7,9 @@ import { compareInventoryTimelineEvents } from './cost-ledger.js';
 import { isSameOccurredAt, purchaseBusinessDate, purchaseCorrectionFixedFields } from './inventory.js';
 import { formatReportDateTime } from './reports.js';
 import { calculateSettlementMemberNet, settlementProfitPercentageBasisPoints } from './settlements.js';
+import { split as splitQuickSaleCost } from './quick-sales.js';
 import { asCents, calculateServiceFeeCents } from './sales-expenses.js';
+import { allocate as allocateGroupPurchaseCost } from './product-groups.js';
 
 process.env.SESSION_SECRET = 'test-secret-only';
 process.env.DATABASE_URL = 'postgres://test:test@localhost:5432/test';
@@ -54,6 +56,37 @@ test('purchase correction ignores legacy purchased_on mismatches', () => {
   );
 });
 
+
+test('inventory timeline treats quick-sale like a sale for ordering', () => {
+  const sale = { id: 'sale', kind: 'sale' as const, occurredAtMs: 1000 };
+  const quick = { id: 'quick', kind: 'quick-sale' as const, occurredAtMs: 1000 };
+  const purchase = { id: 'purchase', kind: 'purchase' as const, occurredAtMs: 1000 };
+  assert.ok(compareInventoryTimelineEvents(purchase, quick) < 0);
+  assert.equal(compareInventoryTimelineEvents(quick, sale), quick.id.localeCompare(sale.id));
+  const later = { id: 'quick-later', kind: 'quick-sale' as const, occurredAtMs: 2000 };
+  assert.ok(compareInventoryTimelineEvents(quick, later) < 0);
+});
+
+test('quick sale cost split keeps integer conservation and deterministic ordering', () => {
+  const weights = new Map<string, number>([
+    ['user-a', 3000],
+    ['user-b', 7000],
+  ]);
+  const result = splitQuickSaleCost(9999, weights);
+  const total = [...result.values()].reduce((sum, amount) => sum + amount, 0);
+  assert.equal(total, 9999);
+  const second = splitQuickSaleCost(9999, weights);
+  assert.deepEqual([...result], [...second]);
+  const none = splitQuickSaleCost(1234, new Map());
+  assert.equal(none.size, 0);
+});
+test('group purchase allows zero total cost and assigns zero to every cost bearer', () => {
+  const result = allocateGroupPurchaseCost(0, [
+    { userId: 'user-a', amount: 0 },
+    { userId: 'user-b', amount: 0 },
+  ]);
+  assert.deepEqual([...result], [['user-a', 0], ['user-b', 0]]);
+});
 test('inventory timeline sorts timestamps by epoch, not locale date strings', () => {
   const purchase = { id: 'purchase', kind: 'purchase' as const, occurredAtMs: Date.parse('2026-09-09T16:00:00.000Z') };
   const sale = { id: 'sale', kind: 'sale' as const, occurredAtMs: Date.parse('2026-09-10T02:12:00.000Z') };

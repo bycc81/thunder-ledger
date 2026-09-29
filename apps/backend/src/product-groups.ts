@@ -18,8 +18,9 @@ function templateValues(body: { name?: unknown; variants?: unknown }) {
   if (!name || name.length > 100 || !variants.length || variants.some((value) => !value || value.length > 100) || new Set(variants.map((value) => value.toLocaleLowerCase())).size !== variants.length) return null;
   return { name, variants };
 }
-function allocate(total: number, parts: Array<{ userId: string; amount: number }>) {
+export function allocate(total: number, parts: Array<{ userId: string; amount: number }>) {
   const output = new Map(parts.map((part) => [part.userId, 0])); const weight = parts.reduce((sum, part) => sum + part.amount, 0); let used = 0;
+  if (!total || !weight) return output;
   for (const part of parts) { const value = Math.floor(total * part.amount / weight); output.set(part.userId, value); used += value; }
   for (const part of [...parts].sort((a, b) => a.userId.localeCompare(b.userId)).slice(0, total - used)) output.set(part.userId, (output.get(part.userId) ?? 0) + 1);
   return output;
@@ -160,7 +161,7 @@ export async function registerProductGroupRoutes(app: FastifyInstance): Promise<
   });
   app.get<{ Params: { batchId: string } }>('/api/batches/:batchId/products', async (request, reply) => {
     const r = request as AccessRequest; const context = await requireBatch(r, reply, request.params.batchId); if (!context) return;
-    return (await getPool().query(`SELECT p.id,p.name,p.group_id AS "groupId",p.variant_name AS "variantName",g.name AS "groupName",(COALESCE(ip.q,0)-COALESCE(sa.q,0)-COALESCE(ad.q,0))::int AS "availableQuantity" FROM products p LEFT JOIN product_groups g ON g.id=p.group_id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM inventory_purchases WHERE batch_id=$1 GROUP BY product_id) ip ON ip.product_id=p.id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM sales WHERE batch_id=$1 AND id NOT IN (SELECT sale_id FROM sale_reversals) GROUP BY product_id) sa ON sa.product_id=p.id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM inventory_adjustments WHERE batch_id=$1 GROUP BY product_id) ad ON ad.product_id=p.id WHERE p.workspace_id=$2 ORDER BY COALESCE(g.name,p.name),p.variant_name`, [request.params.batchId, context.workspaceId])).rows;
+    return (await getPool().query(`SELECT p.id,p.name,p.group_id AS "groupId",p.variant_name AS "variantName",g.name AS "groupName",(COALESCE(ip.q,0)-COALESCE(sa.q,0)-COALESCE(ad.q,0)-COALESCE(qsale.q,0))::int AS "availableQuantity" FROM products p LEFT JOIN product_groups g ON g.id=p.group_id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM inventory_purchases WHERE batch_id=$1 GROUP BY product_id) ip ON ip.product_id=p.id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM sales WHERE batch_id=$1 AND id NOT IN (SELECT sale_id FROM sale_reversals) GROUP BY product_id) sa ON sa.product_id=p.id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM inventory_adjustments WHERE batch_id=$1 GROUP BY product_id) ad ON ad.product_id=p.id LEFT JOIN (SELECT qsc.product_id,SUM(qsc.quantity)::int q FROM quick_sale_inventory_consumptions qsc JOIN quick_sale_items qsi ON qsi.id=qsc.quick_sale_item_id JOIN quick_sales qs ON qs.id=qsi.quick_sale_id LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id WHERE qs.batch_id=$1 AND qsr.quick_sale_id IS NULL GROUP BY qsc.product_id) qsale ON qsale.product_id=p.id WHERE p.workspace_id=$2 ORDER BY COALESCE(g.name,p.name),p.variant_name`, [request.params.batchId, context.workspaceId])).rows;
   });
   app.post<{ Params: { batchId: string }; Body: { channelId?: unknown; payerUserId?: unknown; occurredAt?: unknown; totalCost?: unknown; costShares?: unknown; variants?: unknown; sourceUrl?: unknown; note?: unknown } }>('/api/batches/:batchId/group-purchases', async (request, reply) => {
     const r = request as AccessRequest; const context = await requireBatch(r, reply, request.params.batchId, true); if (!context) return;

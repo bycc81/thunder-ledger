@@ -101,10 +101,10 @@ onMounted(load)
         </button>
       </section>
       <h2>纳入销售</h2>
-      <section class="list">
-        <div v-for="sale in detail.sales" :key="sale.id" class="row">
+      <section class="list" data-ai-id="settlement-detail-transactions">
+        <div v-for="sale in detail.transactions || detail.sales" :key="sale.id" class="row">
           <div>
-            <strong>{{ sale.productGroupName && sale.variantName ? `${sale.productGroupName} · ${sale.variantName}` : sale.productName }} · {{ sale.quantity }} 件</strong><small>{{ formatDateTime(sale.occurredAt) }} · {{ sale.sellerUsername }} 收款</small>
+            <strong><van-tag v-if="sale.source === 'quick_sale'" type="primary" plain size="medium">{{ sale.sourceLabel || '快速售出' }}</van-tag> {{ sale.productGroupName && sale.variantName ? `${sale.productGroupName} · ${sale.variantName}` : sale.productName }} · {{ sale.quantity }} 件</strong><small>{{ formatDateTime(sale.occurredAt) }} · {{ sale.sellerUsername }} 收款</small>
           </div>
           <b>¥{{ sale.totalPrice }}</b>
         </div>
