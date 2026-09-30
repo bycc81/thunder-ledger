@@ -67,7 +67,7 @@ async function requireBatch(request: AccessRequest, reply: FastifyReply, batchId
 export async function registerProductGroupRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { workspaceId: string } }>('/api/workspaces/:workspaceId/product-groups', async (request, reply) => {
     const r = request as AccessRequest; if (!(await workspaceAccess(r, reply, request.params.workspaceId))) return;
-    const rows = (await getPool().query(`SELECT g.id,g.name,g.description,g.reference_price::text AS "referencePrice",g.created_at AS "createdAt",g.updated_at AS "updatedAt",cover.object_key AS "firstObjectKey",COALESCE(json_agg(json_build_object('id',p.id,'name',p.variant_name,'referencePrice',p.reference_price::text) ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL),'[]') AS variants FROM product_groups g LEFT JOIN products p ON p.group_id=g.id LEFT JOIN LATERAL (SELECT a.object_key FROM product_group_images gi JOIN assets a ON a.id=gi.asset_id AND a.deleted_at IS NULL AND a.status='ready' WHERE gi.product_group_id=g.id ORDER BY gi.position LIMIT 1) cover ON true WHERE g.workspace_id=$1 GROUP BY g.id,cover.object_key ORDER BY g.created_at DESC`, [request.params.workspaceId])).rows as ProductGroupRow[];
+    const rows = (await getPool().query(`SELECT g.id,g.name,g.description,g.reference_price::text AS "referencePrice",g.created_at AS "createdAt",g.updated_at AS "updatedAt",cover.object_key AS "firstObjectKey",COALESCE(json_agg(json_build_object('id',p.id,'name',p.variant_name,'referencePrice',p.reference_price::text) ORDER BY p.created_at) FILTER (WHERE p.id IS NOT NULL),'[]') AS variants FROM product_groups g LEFT JOIN products p ON p.group_id=g.id AND p.deleted_at IS NULL LEFT JOIN LATERAL (SELECT a.object_key FROM product_group_images gi JOIN assets a ON a.id=gi.asset_id AND a.deleted_at IS NULL AND a.status='ready' WHERE gi.product_group_id=g.id ORDER BY gi.position LIMIT 1) cover ON true WHERE g.workspace_id=$1 AND g.deleted_at IS NULL GROUP BY g.id,cover.object_key ORDER BY g.created_at DESC`, [request.params.workspaceId])).rows as ProductGroupRow[];
     return Promise.all(rows.map(async (row) => {
       const images = (await getPool().query('SELECT gi.asset_id AS "assetId",gi.position,a.object_key AS "objectKey" FROM product_group_images gi JOIN assets a ON a.id=gi.asset_id AND a.status=\'ready\' AND a.deleted_at IS NULL WHERE gi.product_group_id=$1 ORDER BY gi.position', [row.id])).rows as GroupImageRow[];
       return presentGroup(row, images);
@@ -101,21 +101,17 @@ export async function registerProductGroupRoutes(app: FastifyInstance): Promise<
     const client = await getPool().connect();
     try {
       await client.query('BEGIN');
-      const current = (await client.query('SELECT id FROM product_groups WHERE id=$1 AND workspace_id=$2 FOR UPDATE', [request.params.groupId, request.params.workspaceId])).rows[0];
+      const current = (await client.query('SELECT id FROM product_groups WHERE id=$1 AND workspace_id=$2 AND deleted_at IS NULL FOR UPDATE', [request.params.groupId, request.params.workspaceId])).rows[0];
       if (!current) { await client.query('ROLLBACK'); return reply.code(404).send({ code: 'NOT_FOUND' }); }
-      const existing = (await client.query('SELECT id,variant_name AS "variantName" FROM products WHERE group_id=$1 AND workspace_id=$2 FOR UPDATE', [request.params.groupId, request.params.workspaceId])).rows as Array<{ id: string; variantName: string | null }>;
+      const existing = (await client.query('SELECT id,variant_name AS "variantName" FROM products WHERE group_id=$1 AND workspace_id=$2 AND deleted_at IS NULL FOR UPDATE', [request.params.groupId, request.params.workspaceId])).rows as Array<{ id: string; variantName: string | null }>;
       const existingNamed = new Set(existing.filter((item) => item.variantName !== null).map((item) => item.id)); const unnamed = existing.find((item) => item.variantName === null); const submittedIds = new Set(variants.filter((item) => item.id).map((item) => item.id!));
       if ([...submittedIds].some((id) => !existingNamed.has(id))) { await client.query('ROLLBACK'); return message(reply, 'INVALID_PRODUCT_GROUP_VARIANT', '款式不属于该商品组'); }
       const removed = [...existingNamed].filter((id) => !submittedIds.has(id));
       if (removed.length) {
-        const used = (await client.query('SELECT id FROM products p WHERE p.id=ANY($1::uuid[]) AND (EXISTS (SELECT 1 FROM inventory_purchases ip WHERE ip.product_id=p.id) OR EXISTS (SELECT 1 FROM sales s WHERE s.product_id=p.id) OR EXISTS (SELECT 1 FROM listing_variants lv WHERE lv.product_id=p.id) OR EXISTS (SELECT 1 FROM listings l WHERE l.product_id=p.id))', [removed])).rowCount;
-        if (used) { await client.query('ROLLBACK'); return message(reply, 'PRODUCT_GROUP_VARIANT_IN_USE', '已有采购、上架或销售记录的款式不能删除', 409); }
-        await client.query('DELETE FROM products WHERE id=ANY($1::uuid[])', [removed]);
+        await client.query('UPDATE products SET deleted_at=now(),updated_by=$3,updated_at=now() WHERE id=ANY($1::uuid[]) AND group_id=$2', [removed, request.params.groupId, r.access!.id]);
       }
       if (unnamed && variants.length) {
-        const used = (await client.query('SELECT id FROM products p WHERE p.id=$1 AND (EXISTS (SELECT 1 FROM inventory_purchases ip WHERE ip.product_id=p.id) OR EXISTS (SELECT 1 FROM sales s WHERE s.product_id=p.id) OR EXISTS (SELECT 1 FROM listings l WHERE l.product_id=p.id))', [unnamed.id])).rowCount;
-        if (used) { await client.query('ROLLBACK'); return message(reply, 'PRODUCT_GROUP_VARIANT_IN_USE', '已有业务记录的无款式商品不能改为款式商品', 409); }
-        await client.query('DELETE FROM products WHERE id=$1', [unnamed.id]);
+        await client.query('UPDATE products SET deleted_at=now(),updated_by=$2,updated_at=now() WHERE id=$1', [unnamed.id, r.access!.id]);
       }
       await client.query('UPDATE product_groups SET name=$3,description=$4,reference_price=$5,updated_by=$6,updated_at=now() WHERE id=$1 AND workspace_id=$2', [request.params.groupId, request.params.workspaceId, name, description, referencePrice === null ? null : referencePrice / 100, r.access!.id]);
       if (!(await replaceGroupImages(client, request.params.groupId, request.params.workspaceId, imageIds))) { await client.query('ROLLBACK'); return message(reply, 'INVALID_PRODUCT_GROUP_IMAGES', '商品组图片无效或尚未上传完成'); }
@@ -130,6 +126,20 @@ export async function registerProductGroupRoutes(app: FastifyInstance): Promise<
       await client.query('COMMIT');
     } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
     await audit(request.params.workspaceId, r.access!.id, 'product_group.update', 'product_group', request.params.groupId, { variantCount: variants.length }); return { id: request.params.groupId };
+  });
+  app.delete<{ Params: { workspaceId: string; groupId: string } }>('/api/workspaces/:workspaceId/product-groups/:groupId', async (request, reply) => {
+    const r = request as AccessRequest; if (!(await workspaceAccess(r, reply, request.params.workspaceId, true))) return;
+    if (!UUID_RE.test(request.params.groupId)) return message(reply, 'INVALID_PRODUCT_GROUP', '商品组无效');
+    const client = await getPool().connect();
+    try {
+      await client.query('BEGIN');
+      const group = (await client.query('SELECT id FROM product_groups WHERE id=$1 AND workspace_id=$2 AND deleted_at IS NULL FOR UPDATE', [request.params.groupId, request.params.workspaceId])).rows[0] as { id: string } | undefined;
+      if (!group) { await client.query('ROLLBACK'); return reply.code(404).send({ code: 'NOT_FOUND' }); }
+      await client.query('UPDATE products SET deleted_at=now(),updated_by=$3,updated_at=now() WHERE group_id=$1 AND workspace_id=$2 AND deleted_at IS NULL', [group.id, request.params.workspaceId, r.access!.id]);
+      await client.query('UPDATE product_groups SET deleted_at=now(),updated_by=$3,updated_at=now() WHERE id=$1 AND workspace_id=$2', [group.id, request.params.workspaceId, r.access!.id]);
+      await client.query('COMMIT');
+    } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+    await audit(request.params.workspaceId, r.access!.id, 'product_group.delete', 'product_group', request.params.groupId); return reply.code(204).send();
   });
   app.get<{ Params: { workspaceId: string } }>('/api/workspaces/:workspaceId/product-group-templates', async (request, reply) => {
     const r = request as AccessRequest; if (!(await workspaceAccess(r, reply, request.params.workspaceId))) return;
@@ -161,7 +171,7 @@ export async function registerProductGroupRoutes(app: FastifyInstance): Promise<
   });
   app.get<{ Params: { batchId: string } }>('/api/batches/:batchId/products', async (request, reply) => {
     const r = request as AccessRequest; const context = await requireBatch(r, reply, request.params.batchId); if (!context) return;
-    return (await getPool().query(`SELECT p.id,p.name,p.group_id AS "groupId",p.variant_name AS "variantName",g.name AS "groupName",(COALESCE(ip.q,0)-COALESCE(sa.q,0)-COALESCE(ad.q,0)-COALESCE(qsale.q,0))::int AS "availableQuantity" FROM products p LEFT JOIN product_groups g ON g.id=p.group_id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM inventory_purchases WHERE batch_id=$1 GROUP BY product_id) ip ON ip.product_id=p.id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM sales WHERE batch_id=$1 AND id NOT IN (SELECT sale_id FROM sale_reversals) GROUP BY product_id) sa ON sa.product_id=p.id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM inventory_adjustments WHERE batch_id=$1 GROUP BY product_id) ad ON ad.product_id=p.id LEFT JOIN (SELECT qsc.product_id,SUM(qsc.quantity)::int q FROM quick_sale_inventory_consumptions qsc JOIN quick_sale_items qsi ON qsi.id=qsc.quick_sale_item_id JOIN quick_sales qs ON qs.id=qsi.quick_sale_id LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id WHERE qs.batch_id=$1 AND qsr.quick_sale_id IS NULL GROUP BY qsc.product_id) qsale ON qsale.product_id=p.id WHERE p.workspace_id=$2 ORDER BY COALESCE(g.name,p.name),p.variant_name`, [request.params.batchId, context.workspaceId])).rows;
+    return (await getPool().query(`SELECT p.id,p.name,p.group_id AS "groupId",p.variant_name AS "variantName",g.name AS "groupName",(COALESCE(ip.q,0)-COALESCE(sa.q,0)-COALESCE(ad.q,0)-COALESCE(qsale.q,0))::int AS "availableQuantity" FROM products p LEFT JOIN product_groups g ON g.id=p.group_id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM inventory_purchases WHERE batch_id=$1 GROUP BY product_id) ip ON ip.product_id=p.id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM sales WHERE batch_id=$1 AND id NOT IN (SELECT sale_id FROM sale_reversals) GROUP BY product_id) sa ON sa.product_id=p.id LEFT JOIN (SELECT product_id,SUM(quantity)::int q FROM inventory_adjustments WHERE batch_id=$1 GROUP BY product_id) ad ON ad.product_id=p.id LEFT JOIN (SELECT qsc.product_id,SUM(qsc.quantity)::int q FROM quick_sale_inventory_consumptions qsc JOIN quick_sale_items qsi ON qsi.id=qsc.quick_sale_item_id JOIN quick_sales qs ON qs.id=qsi.quick_sale_id LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id WHERE qs.batch_id=$1 AND qsr.quick_sale_id IS NULL GROUP BY qsc.product_id) qsale ON qsale.product_id=p.id WHERE p.workspace_id=$2 AND p.deleted_at IS NULL ORDER BY COALESCE(g.name,p.name),p.variant_name`, [request.params.batchId, context.workspaceId])).rows;
   });
   app.post<{ Params: { batchId: string }; Body: { channelId?: unknown; payerUserId?: unknown; occurredAt?: unknown; totalCost?: unknown; costShares?: unknown; variants?: unknown; sourceUrl?: unknown; note?: unknown } }>('/api/batches/:batchId/group-purchases', async (request, reply) => {
     const r = request as AccessRequest; const context = await requireBatch(r, reply, request.params.batchId, true); if (!context) return;

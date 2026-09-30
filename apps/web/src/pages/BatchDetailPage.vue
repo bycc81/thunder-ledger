@@ -28,6 +28,7 @@ const pendingRemoval = ref<BatchMember | null>(null);
 const showRemovalConfirm = ref(false);
 const deletingBatch = ref(false);
 const showBatchDeleteConfirm = ref(false);
+const showMoreActions = ref(false);
 
 const canManage = computed(() => Boolean(batch.value && (batch.value.role === 'owner' || store.canManageWorkspace)));
 const displayedBatchRole = computed(() => batch.value?.memberRole ?? batch.value?.role ?? 'viewer');
@@ -135,7 +136,7 @@ onMounted(load);
         <van-empty v-if="!members.length" description="暂无参与人" data-ai-id="batch-member-empty" />
         <div v-else class="member-list"><div v-for="member in members" :key="member.id" class="member-item" :data-ai-id="`batch-member-item-${member.id}`"><div class="member-main"><strong>{{ member.username }}</strong><span><van-tag :type="member.role === 'owner' ? 'primary' : member.role === 'editor' ? 'warning' : 'default'">{{ roleText(member.role) }}</van-tag><small>加入时间 {{ formatDate(member.created_at) }}</small></span></div><div v-if="member.role !== 'owner' && canManage" class="member-actions"><van-popover placement="top-end" :actions="[{ text: '编辑者' }, { text: '查看者' }]" @select="(action) => updateRole(member, action.text === '编辑者' ? 'editor' : 'viewer')"><template #reference><van-button class="member-action" size="small" plain :data-ai-id="`batch-member-role-${member.id}`">角色</van-button></template></van-popover><van-button class="member-action danger-action" size="small" plain type="danger" :loading="removingId === member.id" :data-ai-id="`batch-member-remove-${member.id}`" @click="requestRemoveParticipant(member)">移除</van-button></div></div></div>
       </section>
-      <section v-if="canManage" class="detail-section batch-danger-zone" data-ai-id="batch-danger-zone"><h2>危险操作</h2><van-button block plain type="danger" :loading="deletingBatch" data-ai-id="batch-detail-delete" @click="showBatchDeleteConfirm = true">删除批次</van-button></section>
+      <section v-if="canManage" class="detail-section more-actions-zone" data-ai-id="batch-more-actions-zone"><van-button block plain class="more-actions-button" :loading="deletingBatch" data-ai-id="batch-more-actions" @click="showMoreActions = true">更多操作</van-button></section>
     </main>
   </div>
 
@@ -150,6 +151,7 @@ onMounted(load);
   <van-popup v-model:show="showParticipantRolePicker" position="bottom" round data-ai-id="participant-role-picker"><van-picker title="选择批次角色" :columns="participantRoleOptions" @confirm="chooseParticipantRole" @cancel="showParticipantRolePicker = false" /></van-popup>
   <DangerConfirmDialog v-model:show="showRemovalConfirm" title="移除参与人" :message="pendingRemoval ? `移除 ${pendingRemoval.username} 后将不能访问此批次。` : ''" confirm-text="移除" ai-id="participant-remove-confirm" :loading="Boolean(removingId)" @confirm="removeParticipant" />
   <DangerConfirmDialog v-model:show="showBatchDeleteConfirm" title="删除批次" :message="batch ? `确定删除“${batch.name}”吗？删除后，该批次将不再显示在当前工作区；已有记录会保留，无法继续操作。` : ''" confirm-text="删除" ai-id="batch-detail-delete-confirm" :loading="deletingBatch" @confirm="deleteBatch" />
+  <van-action-sheet v-model:show="showMoreActions" :actions="[{ name: '删除批次', color: '#b42318' }]" cancel-text="取消" close-on-click-action data-ai-id="batch-more-actions-sheet" @select="showBatchDeleteConfirm = true"><template #action="{ action }"><span data-ai-id="batch-detail-delete">{{ action.name }}</span></template></van-action-sheet>
   <AppBottomNavigation />
 </template>
 
@@ -184,6 +186,6 @@ onMounted(load);
 .member-actions { display:flex; flex-shrink:0; gap:4px; }
 .member-action { min-height:var(--tl-button-compact-height); padding:0 7px; font-size:12px; }
 .danger-action { color:#b42318 !important; }
-.batch-danger-zone { margin-top:32px; }.batch-danger-zone h2 { margin-bottom:10px; }
+.more-actions-zone { margin-top:32px; }.more-actions-button { min-height:44px; border-color:#cfd6e2; color:#536078; }
 .detail-state { display:grid; min-height:60vh; place-items:center; }
 </style>

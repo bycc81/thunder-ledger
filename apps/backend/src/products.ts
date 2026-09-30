@@ -68,7 +68,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
     const query = request.query.q?.trim() ?? '';
     const rows = (await getPool().query(`SELECT p.id,p.name,p.description,p.reference_price::text AS "referencePrice",p.created_at AS "createdAt",p.updated_at AS "updatedAt",cover.object_key AS "firstObjectKey"
       FROM products p LEFT JOIN LATERAL (SELECT a.object_key FROM product_images pi JOIN assets a ON a.id=pi.asset_id AND a.deleted_at IS NULL AND a.status='ready' WHERE pi.product_id=p.id ORDER BY pi.position LIMIT 1) cover ON true
-      WHERE p.workspace_id=$1 AND ($2='' OR p.name ILIKE '%' || $2 || '%') ORDER BY p.created_at DESC`, [request.params.workspaceId, query])).rows as ProductRow[];
+      WHERE p.workspace_id=$1 AND p.deleted_at IS NULL AND ($2='' OR p.name ILIKE '%' || $2 || '%') ORDER BY p.created_at DESC`, [request.params.workspaceId, query])).rows as ProductRow[];
     return Promise.all(rows.map((row) => presentProduct(row)));
   });
 
@@ -77,7 +77,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
     if (!(await workspaceAccess(r, reply, request.params.workspaceId))) return;
     const row = (await getPool().query(`SELECT p.id,p.name,p.description,p.reference_price::text AS "referencePrice",p.created_at AS "createdAt",p.updated_at AS "updatedAt",cover.object_key AS "firstObjectKey"
       FROM products p LEFT JOIN LATERAL (SELECT a.object_key FROM product_images pi JOIN assets a ON a.id=pi.asset_id AND a.deleted_at IS NULL AND a.status='ready' WHERE pi.product_id=p.id ORDER BY pi.position LIMIT 1) cover ON true
-      WHERE p.id=$1 AND p.workspace_id=$2`, [request.params.productId, request.params.workspaceId])).rows[0] as ProductRow | undefined;
+      WHERE p.id=$1 AND p.workspace_id=$2 AND p.deleted_at IS NULL`, [request.params.productId, request.params.workspaceId])).rows[0] as ProductRow | undefined;
     if (!row) return reply.code(404).send({ code: 'NOT_FOUND' });
     const images = (await getPool().query("SELECT pi.asset_id AS \"assetId\",pi.position,a.object_key AS \"objectKey\" FROM product_images pi JOIN assets a ON a.id=pi.asset_id AND a.status='ready' AND a.deleted_at IS NULL WHERE pi.product_id=$1 ORDER BY pi.position", [row.id])).rows as Array<{ assetId: string; position: number; objectKey: string }>;
     return presentProduct(row, images);
@@ -107,7 +107,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
     const client = await getPool().connect();
     try {
       await client.query('BEGIN');
-      const current = (await client.query('SELECT id,name,description,reference_price::text AS "referencePrice" FROM products WHERE id=$1 AND workspace_id=$2 FOR UPDATE', [request.params.productId, request.params.workspaceId])).rows[0] as { id: string; name: string; description: string | null; referencePrice: string | null } | undefined;
+      const current = (await client.query('SELECT id,name,description,reference_price::text AS "referencePrice" FROM products WHERE id=$1 AND workspace_id=$2 AND deleted_at IS NULL FOR UPDATE', [request.params.productId, request.params.workspaceId])).rows[0] as { id: string; name: string; description: string | null; referencePrice: string | null } | undefined;
       if (!current) { await client.query('ROLLBACK'); return reply.code(404).send({ code: 'NOT_FOUND' }); }
       if (parsed.value.assetIds && !(await replaceImages(client, current.id, request.params.workspaceId, parsed.value.assetIds))) { await client.query('ROLLBACK'); return reply.code(400).send({ code: 'INVALID_PRODUCT_IMAGES', message: '商品图片无效或尚未上传完成' }); }
       const row = (await client.query('UPDATE products SET name=$3,description=$4,reference_price=$5,updated_by=$6,updated_at=now() WHERE id=$1 AND workspace_id=$2 RETURNING id,name,description,reference_price::text AS "referencePrice",created_at AS "createdAt",updated_at AS "updatedAt"', [current.id, request.params.workspaceId, parsed.value.name ?? current.name, parsed.value.description ?? current.description, parsed.value.referencePrice === undefined ? current.referencePrice : parsed.value.referencePrice, r.access!.id])).rows[0] as ProductRow;
@@ -116,5 +116,21 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       const images = (await getPool().query("SELECT pi.asset_id AS \"assetId\",pi.position,a.object_key AS \"objectKey\" FROM product_images pi JOIN assets a ON a.id=pi.asset_id AND a.status='ready' AND a.deleted_at IS NULL WHERE pi.product_id=$1 ORDER BY pi.position", [current.id])).rows as Array<{ assetId: string; position: number; objectKey: string }>;
       return presentProduct(row, images);
     } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  });
+
+  app.delete<{ Params: { workspaceId: string; productId: string } }>('/api/workspaces/:workspaceId/products/:productId', async (request, reply) => {
+    const r = request as AccessRequest;
+    if (!(await workspaceAccess(r, reply, request.params.workspaceId, true))) return;
+    if (!UUID_RE.test(request.params.productId)) return reply.code(404).send({ code: 'NOT_FOUND' });
+    const client = await getPool().connect();
+    try {
+      await client.query('BEGIN');
+      const product = (await client.query('SELECT id FROM products WHERE id=$1 AND workspace_id=$2 AND deleted_at IS NULL FOR UPDATE', [request.params.productId, request.params.workspaceId])).rows[0] as { id: string } | undefined;
+      if (!product) { await client.query('ROLLBACK'); return reply.code(404).send({ code: 'NOT_FOUND' }); }
+      await client.query('UPDATE products SET deleted_at=now(),updated_by=$3,updated_at=now() WHERE id=$1 AND workspace_id=$2', [product.id, request.params.workspaceId, r.access!.id]);
+      await client.query('COMMIT');
+    } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+    await audit(request.params.workspaceId, r.access!.id, 'product.delete', 'product', request.params.productId);
+    return reply.code(204).send();
   });
 }

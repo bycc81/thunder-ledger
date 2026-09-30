@@ -42,6 +42,7 @@ export const productGroups = pgTable('product_groups', {
   updatedBy: uuid('updated_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
 export const productGroupTemplates = pgTable('product_group_templates', {
