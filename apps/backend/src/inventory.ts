@@ -87,7 +87,7 @@ async function purchaseShares(purchaseIds: string[]) {
 }
 
 async function validatePurchaseReferences(client: import('pg').PoolClient, batchId: string, workspaceId: string, input: NonNullable<ReturnType<typeof parsePurchase>['value']>): Promise<boolean> {
-  const product = (await client.query('SELECT id FROM products WHERE id=$1 AND workspace_id=$2', [input.productId, workspaceId])).rows[0];
+  const product = (await client.query('SELECT id FROM products WHERE id=$1 AND workspace_id=$2 AND deleted_at IS NULL', [input.productId, workspaceId])).rows[0];
   const channel = (await client.query('SELECT id FROM manual_channels WHERE id=$1 AND workspace_id=$2', [input.channelId, workspaceId])).rows[0];
   const participantIds = [input.payerUserId, ...input.costShares.map((share) => share.userId)];
   const participants = await client.query('SELECT user_id FROM batch_members WHERE batch_id=$1 AND user_id=ANY($2::uuid[])', [batchId, participantIds]);

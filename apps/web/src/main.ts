@@ -2,6 +2,7 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import { createRouter, createWebHistory } from 'vue-router';
 import {
+  ActionSheet,
   Button,
   Cell,
   CellGroup,
@@ -116,7 +117,7 @@ router.beforeEach(async (to) => {
   return true;
 });
 const app = createApp(App).use(pinia).use(router);
-[Button, Cell, CellGroup, Checkbox, CheckboxGroup, Dialog, DropdownItem, DropdownMenu, Empty, Field, Form, Icon, Loading, NavBar, Picker, Popover, Popup, Radio, RadioGroup, Search, Stepper, Switch, Tabbar, TabbarItem, Tag].forEach((component) => app.use(component));
+[ActionSheet, Button, Cell, CellGroup, Checkbox, CheckboxGroup, Dialog, DropdownItem, DropdownMenu, Empty, Field, Form, Icon, Loading, NavBar, Picker, Popover, Popup, Radio, RadioGroup, Search, Stepper, Switch, Tabbar, TabbarItem, Tag].forEach((component) => app.use(component));
 
 window.addEventListener('auth:expired', async () => {
   const auth = useAuthStore(pinia);

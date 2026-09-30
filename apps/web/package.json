@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vue-tsc --noEmit && vite build",
-    "typecheck": "vue-tsc --noEmit"
+    "build": "node scripts/check-vant-registration.mjs && vue-tsc --noEmit && vite build",
+    "typecheck": "node scripts/check-vant-registration.mjs && vue-tsc --noEmit"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
