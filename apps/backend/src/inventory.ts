@@ -31,6 +31,11 @@ export function purchaseCorrectionFixedFields(current: { channelId: string; occu
   ].filter((field): field is string => Boolean(field));
 }
 
+/** 普通销售或关联库存的快速售出发生后，采购更正必须留下审计原因。 */
+export function hasInventorySales(saleCount: number, quickSaleCount: number): boolean {
+  return saleCount > 0 || quickSaleCount > 0;
+}
+
 function asCents(value: unknown): number | null {
   if (typeof value !== 'string' || !MONEY_RE.test(value)) return null;
   const [whole, fraction = ''] = value.split('.');
@@ -156,8 +161,13 @@ export async function registerInventoryRoutes(app: FastifyInstance): Promise<voi
     const purchase = (await getPool().query(`SELECT id,product_id AS "productId",channel_id AS "channelId",payer_user_id AS "payerUserId",quantity,total_cost_cents::text AS "totalCostCents",occurred_at AS "occurredAt",source_url AS "sourceUrl",note FROM inventory_purchases WHERE id=$1 AND batch_id=$2`, [request.params.purchaseId, request.params.batchId])).rows[0] as { id: string; productId: string; totalCostCents: string } | undefined;
     if (!purchase) return reply.code(404).send({ code: 'NOT_FOUND' });
     const shares = await purchaseShares([purchase.id]); const pool = getPool();
-    const [sales, corrections, adjustments] = await Promise.all([pool.query('SELECT COUNT(*)::int AS count FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id WHERE s.batch_id=$1 AND s.product_id=$2 AND sr.sale_id IS NULL', [request.params.batchId, purchase.productId]), pool.query(`SELECT pc.id,pc.reason,pc.created_at AS "createdAt",u.username AS "createdByUsername" FROM purchase_corrections pc JOIN users u ON u.id=pc.created_by WHERE pc.purchase_id=$1 ORDER BY pc.created_at DESC`, [purchase.id]), pool.query('SELECT COUNT(*)::int AS count FROM inventory_adjustments WHERE batch_id=$1 AND product_id=$2', [request.params.batchId, purchase.productId])]);
-    return { ...purchase, totalCost: asMoney(purchase.totalCostCents), costShares: shares.get(purchase.id) ?? [], hasSales: Number(sales.rows[0]?.count ?? 0) > 0, hasInventoryAdjustments: Number(adjustments.rows[0]?.count ?? 0) > 0, corrections: corrections.rows };
+    const [sales, quickSales, corrections, adjustments] = await Promise.all([
+      pool.query('SELECT COUNT(*)::int AS count FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id WHERE s.batch_id=$1 AND s.product_id=$2 AND sr.sale_id IS NULL', [request.params.batchId, purchase.productId]),
+      pool.query('SELECT COUNT(*)::int AS count FROM quick_sale_inventory_consumptions qsc JOIN quick_sale_items qsi ON qsi.id=qsc.quick_sale_item_id JOIN quick_sales qs ON qs.id=qsi.quick_sale_id LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id WHERE qs.batch_id=$1 AND qsc.product_id=$2 AND qsr.quick_sale_id IS NULL', [request.params.batchId, purchase.productId]),
+      pool.query(`SELECT pc.id,pc.reason,pc.created_at AS "createdAt",u.username AS "createdByUsername" FROM purchase_corrections pc JOIN users u ON u.id=pc.created_by WHERE pc.purchase_id=$1 ORDER BY pc.created_at DESC`, [purchase.id]),
+      pool.query('SELECT COUNT(*)::int AS count FROM inventory_adjustments WHERE batch_id=$1 AND product_id=$2', [request.params.batchId, purchase.productId])
+    ]);
+    return { ...purchase, totalCost: asMoney(purchase.totalCostCents), costShares: shares.get(purchase.id) ?? [], hasSales: hasInventorySales(Number(sales.rows[0]?.count ?? 0), Number(quickSales.rows[0]?.count ?? 0)), hasInventoryAdjustments: Number(adjustments.rows[0]?.count ?? 0) > 0, corrections: corrections.rows };
   });
 
   app.patch<{ Params: { batchId: string; purchaseId: string }; Body: PurchaseInput }>('/api/batches/:batchId/purchases/:purchaseId', async (request, reply) => {
