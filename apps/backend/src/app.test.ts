@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { buildApp } from './app.js';
 import { SESSION_COOKIE_NAME, sessionCookieOptions } from './auth-session.js';
 import { compareInventoryTimelineEvents } from './cost-ledger.js';
-import { isSameOccurredAt, purchaseBusinessDate, purchaseCorrectionFixedFields } from './inventory.js';
+import { hasInventorySales, isSameOccurredAt, purchaseBusinessDate, purchaseCorrectionFixedFields } from './inventory.js';
 import { formatReportDateTime } from './reports.js';
 import { calculateSettlementMemberNet, settlementProfitPercentageBasisPoints } from './settlements.js';
 import { split as splitQuickSaleCost } from './quick-sales.js';
@@ -54,6 +54,12 @@ test('purchase correction ignores legacy purchased_on mismatches', () => {
     purchaseCorrectionFixedFields({ channelId: 'channel-1', occurredAt }, { channelId: 'channel-1', occurredAt: '2026-09-09T17:00:00.000Z' }),
     ['采购时间']
   );
+});
+
+test('purchase correction treats linked quick sales as inventory sales', () => {
+  assert.equal(hasInventorySales(0, 0), false);
+  assert.equal(hasInventorySales(1, 0), true);
+  assert.equal(hasInventorySales(0, 1), true);
 });
 
 
