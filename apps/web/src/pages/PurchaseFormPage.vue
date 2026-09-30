@@ -182,8 +182,8 @@ watch(groupTotalCost, (value) => { if (value !== '—') groupCostToDistribute.va
   <div class="purchase-form-page" data-ai-id="inventory-purchase-form-page">
     <van-nav-bar :title="groupMode ? `采购 ${group?.name || ''}` : (hasSales ? '更正采购' : (isEditing ? '编辑采购' : '新增采购'))" left-text="返回" left-arrow @click-left="back" />
     <main v-if="!loading && !error" class="content">
-      <p class="form-note">{{ groupMode ? '商品组采购会按款式分别入库和核算；总成本与承担合计必须一致。' : '同一种商品合并核算，按移动平均成本计价；销售不对应某条采购记录。' }}</p>
-      <p v-if="hasSales" class="correction-note" data-ai-id="inventory-purchase-correction-notice">该采购已有销售。可更正数量、总成本、付款人和成本承担；商品、采购渠道、采购时间不可修改。</p>
+      <p class="form-note">{{ groupMode ? '商品组采购会按款式分别入库和核算；总成本与承担合计必须一致。' : '同一商品的库存会合并计算成本；销售按当时的库存平均成本计入，不绑定某一笔采购。' }}</p>
+      <p v-if="hasSales" class="correction-note" data-ai-id="inventory-purchase-correction-notice">这笔采购已参与销售计算。你仍可更正数量、总成本、付款人和成本承担；为保证历史记录一致，商品、采购渠道和采购时间不能修改。</p>
       <p v-if="blockedByAdjustment" class="blocked-note" data-ai-id="inventory-purchase-adjustment-blocked">该商品已有报损或丢失记录，当前版本不支持更正采购。</p>
       <form @submit.prevent="save">
         <van-field :model-value="purchaseTargetName" label="商品" required readonly is-link :disabled="isEditing" data-ai-id="inventory-purchase-target" @click="!isEditing && (showPurchaseTargetPicker = true)" />

@@ -52,7 +52,7 @@ function openQuickSale(id: string) {
 function askQuickSale(id: string) {
   ask('quickSale', id)
 }
-const reverseTitle = computed(() => (reverseType.value === 'sale' ? '撤销销售' : reverseType.value === 'quickSale' ? '撤销快速售出' : '撤销费用'))
+const reverseTitle = computed(() => (reverseType.value === 'sale' ? '撤销销售' : reverseType.value === 'quickSale' ? '撤销快速售出' : '撤销其他费用'))
 function ask(type: 'sale' | 'expense' | 'quickSale', id: string) {
   reverseType.value = type
   reverseId.value = id
@@ -88,7 +88,7 @@ onMounted(async () => {
     <van-empty v-else-if="error" :description="error" />
     <main v-else class="content">
       <div class="tabs">
-        <button :class="{ active: tab === 'sales' }" @click="tab = 'sales'">销售</button><button :class="{ active: tab === 'expenses' }" @click="tab = 'expenses'">费用</button>
+        <button :class="{ active: tab === 'sales' }" @click="tab = 'sales'">销售</button><button :class="{ active: tab === 'expenses' }" @click="tab = 'expenses'">其他费用</button>
       </div>
       <section v-if="tab === 'sales'" class="sale-list" data-ai-id="sale-list">
         <header>
@@ -145,10 +145,10 @@ onMounted(async () => {
       </section>
       <section v-else data-ai-id="expense-list">
         <header>
-          <span>记录谁实际垫付的费用</span
-          ><van-button v-if="canEdit" size="small" type="primary" @click="router.push(`/batches/${batchId}/transactions/expenses/new`)">记录费用</van-button>
+          <span>记录本批次额外发生的支出，例如邮费、包装材料费等。</span
+          ><van-button v-if="canEdit" size="small" type="primary" @click="router.push(`/batches/${batchId}/transactions/expenses/new`)">记录</van-button>
         </header>
-        <van-empty v-if="!expenses.length" description="还没有费用记录" />
+        <van-empty v-if="!expenses.length" description="还没有其他费用记录" />
         <article v-for="expense in expenses" :key="expense.id" class="item" :data-ai-id="`expense-item-${expense.id}`">
           <div class="item-main">
             <strong>{{ expense.name }} · ¥{{ expense.amount }}</strong
@@ -157,7 +157,7 @@ onMounted(async () => {
           <div class="item-side">
             <van-tag v-if="expense.reversalReason" type="default" class="status-tag status-tag--reversed" :data-ai-id="`expense-status-${expense.id}`">已撤销</van-tag
             ><van-tag v-else-if="expense.settled" type="success" class="status-tag status-tag--settled" :data-ai-id="`expense-status-${expense.id}`">已结账</van-tag
-            ><button v-else-if="canEdit" class="reverse" title="撤销费用" :data-ai-id="`expense-reversal-${expense.id}`" @click="ask('expense', expense.id)">撤销</button>
+            ><button v-else-if="canEdit" class="reverse" title="撤销其他费用" :data-ai-id="`expense-reversal-${expense.id}`" @click="ask('expense', expense.id)">撤销</button>
           </div>
         </article>
       </section>
