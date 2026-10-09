@@ -23,4 +23,6 @@ docs/
 
 Markdown 是维护和评审的事实来源，HTML 是路线图和架构图的浏览版本。
 
+自动生成的验收截图、录屏和结果报告统一存放在对应变更目录的 `evidence/`，由 Git 忽略，仅在本地保留。提交设计、验证脚本和文字验收结论；正式索引不链接这些本地生成文件。
+
 新模块与新页面使用 `standards/change-templates/product-ux.md` 记录产品与 UX
