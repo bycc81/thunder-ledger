@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { showFailToast, showSuccessToast } from 'vant'
+import { showFailToast, showSuccessToast, type DropdownItemInstance } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
 import { api, type SettlementExpense, type SettlementMember, type SettlementPreview, type SettlementSale } from '../api'
 import { formatDateTime } from '../utils/dateTime'
@@ -13,6 +13,19 @@ const sales = ref<SettlementSale[]>([])
 const transactions = ref<SettlementSale[]>([])
 const quickSaleList = computed(() => transactions.value.filter((sale) => sale.source === 'quick_sale'))
 const selectedQuickSales = ref<string[]>([])
+const selectedMemberIds = ref<string[]>([])
+const draftMemberIds = ref<string[]>([])
+const memberDropdown = ref<DropdownItemInstance>()
+const selectedMemberSet = computed(() => new Set(selectedMemberIds.value))
+const filteredSales = computed(() => sales.value.filter(matchesMemberFilter))
+const filteredQuickSales = computed(() => quickSaleList.value.filter(matchesMemberFilter))
+const visibleSaleCount = computed(() => filteredSales.value.length + filteredQuickSales.value.length)
+const selectedSaleCount = computed(() => selectedSales.value.length + selectedQuickSales.value.length)
+const hiddenSelectedSaleCount = computed(() => selectedSaleCount.value
+  - filteredSales.value.filter((sale) => selectedSaleSet.value.has(sale.id)).length
+  - filteredQuickSales.value.filter((sale) => selectedQuickSaleSet.value.has(sale.id)).length)
+const memberFilterTitle = computed(() => selectedMemberIds.value.length ? `收款人（已选 ${selectedMemberIds.value.length} 人）` : '收款人：全部人员')
+
 const expenses = ref<SettlementExpense[]>([])
 const selectedSales = ref<string[]>([])
 const selectedExpenses = ref<string[]>([])
@@ -29,6 +42,23 @@ const showConfirm = ref(false)
 
 const selectedSaleSet = computed(() => new Set(selectedSales.value))
 const selectedQuickSaleSet = computed(() => new Set(selectedQuickSales.value))
+function matchesMemberFilter(sale: SettlementSale) {
+  return !selectedMemberSet.value.size || Boolean(sale.sellerUserId && selectedMemberSet.value.has(sale.sellerUserId))
+}
+
+function applyMemberFilter() {
+  selectedMemberIds.value = [...draftMemberIds.value]
+  memberDropdown.value?.toggle(false)
+}
+
+function handleFilterKeydown(event: KeyboardEvent) {
+  if ((event.target as HTMLElement).getAttribute('role') !== 'button') return
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    memberDropdown.value?.toggle()
+  }
+}
+
 function moneyToCents(value: string | null | undefined) {
   if (typeof value !== 'string') return 0
   const [whole, fraction = ''] = value.split('.')
@@ -82,13 +112,15 @@ async function load() {
 }
 
 function selectAll() {
-  selectedSales.value = sales.value.map((sale) => sale.id)
-  selectedQuickSales.value = quickSaleList.value.map((sale) => sale.id)
+  selectedSales.value = [...new Set([...selectedSales.value, ...filteredSales.value.map((sale) => sale.id)])]
+  selectedQuickSales.value = [...new Set([...selectedQuickSales.value, ...filteredQuickSales.value.map((sale) => sale.id)])]
 }
 
 function clearAll() {
-  selectedSales.value = []
-  selectedQuickSales.value = []
+  const visibleSales = new Set(filteredSales.value.map((sale) => sale.id))
+  const visibleQuickSales = new Set(filteredQuickSales.value.map((sale) => sale.id))
+  selectedSales.value = selectedSales.value.filter((id) => !visibleSales.has(id))
+  selectedQuickSales.value = selectedQuickSales.value.filter((id) => !visibleQuickSales.has(id))
 }
 
 function isExpenseSelected(expense: SettlementExpense) {
@@ -195,11 +227,28 @@ onMounted(load)
     <main v-else class="content">
       <div class="steps"><strong :class="{ active: step === 1 }">1 选择</strong><strong :class="{ active: step === 2 }">2 利润</strong><strong :class="{ active: step === 3 }">3 预览</strong></div>
       <section v-if="step === 1">
-        <header class="section-head"><h2>本次销售</h2><div><button class="text-button" data-ai-id="settlement-sales-select-all" @click="selectAll">全选</button><button class="text-button" data-ai-id="settlement-sales-clear" @click="clearAll">清空</button></div></header>
+        <header class="section-head"><h2>本次销售</h2><div><button class="text-button" :disabled="!visibleSaleCount" data-ai-id="settlement-sales-select-all" @click="selectAll">全选</button><button class="text-button" data-ai-id="settlement-sales-clear" @click="clearAll">清空</button></div></header>
+        <van-dropdown-menu class="member-filter" :z-index="5" data-ai-id="settlement-member-filter" @keydown="handleFilterKeydown">
+          <van-dropdown-item ref="memberDropdown" data-ai-id="settlement-member-filter-dropdown" @open="draftMemberIds = [...selectedMemberIds]">
+            <template #title><span data-ai-id="settlement-member-filter-trigger">{{ memberFilterTitle }}</span></template>
+            <div class="member-filter-panel" data-ai-id="settlement-member-filter-panel">
+              <p class="member-filter-hint">按收款人筛选，可多选；未选择时显示全部人员。</p>
+              <van-checkbox-group v-model="draftMemberIds" class="member-filter-options" data-ai-id="settlement-member-filter-options">
+                <van-checkbox v-for="member in members" :key="member.id" :name="member.id" shape="square" class="member-filter-option" :data-ai-id="`settlement-member-filter-option-${member.id}`">{{ member.username }}</van-checkbox>
+              </van-checkbox-group>
+              <div class="member-filter-actions">
+                <van-button plain data-ai-id="settlement-member-filter-reset" @click="draftMemberIds = []">重置</van-button>
+                <van-button type="primary" data-ai-id="settlement-member-filter-apply" @click="applyMemberFilter">确定</van-button>
+              </div>
+            </div>
+          </van-dropdown-item>
+        </van-dropdown-menu>
+        <p class="filter-summary" role="status" data-ai-id="settlement-member-filter-summary">当前 {{ visibleSaleCount }} 笔 · 已选 {{ selectedSaleCount }} 笔<span v-if="hiddenSelectedSaleCount">（含筛选外 {{ hiddenSelectedSaleCount }} 笔）</span></p>
         <div class="list" data-ai-id="settlement-sales-list">
-          <label v-for="sale in sales" :key="sale.id" class="choice-row" :data-ai-id="`settlement-sale-${sale.id}`"><input v-model="selectedSales" type="checkbox" :value="sale.id"><span><strong>{{ sale.displayName || sale.productName }} · {{ sale.quantity }} 件</strong><small>{{ formatDateTime(sale.occurredAt) }} · {{ sale.sellerUsername }} 收款</small></span><b>¥{{ sale.totalPrice }}</b></label>
-          <label v-for="sale in quickSaleList" :key="sale.id" class="choice-row" :data-ai-id="`settlement-quick-sale-${sale.id}`"><input v-model="selectedQuickSales" type="checkbox" :value="sale.id"><span><strong><van-tag type="primary" plain size="medium">{{ sale.sourceLabel || '快速售出' }}</van-tag> {{ sale.productName }} · {{ sale.quantity }} 件</strong><small>{{ formatDateTime(sale.occurredAt) }} · {{ sale.sellerUsername }} 收款</small></span><b>¥{{ sale.totalPrice }}</b></label>
+          <label v-for="sale in filteredSales" :key="sale.id" class="choice-row" :data-ai-id="`settlement-sale-${sale.id}`"><input v-model="selectedSales" type="checkbox" :value="sale.id"><span><strong>{{ sale.displayName || sale.productName }} · {{ sale.quantity }} 件</strong><small>{{ formatDateTime(sale.occurredAt) }} · {{ sale.sellerUsername }} 收款</small></span><b>¥{{ sale.totalPrice }}</b></label>
+          <label v-for="sale in filteredQuickSales" :key="sale.id" class="choice-row" :data-ai-id="`settlement-quick-sale-${sale.id}`"><input v-model="selectedQuickSales" type="checkbox" :value="sale.id"><span><strong><van-tag type="primary" plain size="medium">{{ sale.sourceLabel || '快速售出' }}</van-tag> {{ sale.productName }} · {{ sale.quantity }} 件</strong><small>{{ formatDateTime(sale.occurredAt) }} · {{ sale.sellerUsername }} 收款</small></span><b>¥{{ sale.totalPrice }}</b></label>
         </div>
+        <van-empty v-if="!visibleSaleCount" :description="selectedMemberIds.length ? '所选人员暂无待结算销售' : '暂无待结算销售'" data-ai-id="settlement-sales-empty" />
         <header class="section-head"><h2>本次费用</h2></header>
         <div class="list" data-ai-id="settlement-expenses-list">
           <label v-for="expense in expenses" :key="expense.id" class="choice-row" :class="{ disabled: (expense.saleId && !selectedSaleSet.has(expense.saleId)) || (expense.quickSaleId && !selectedQuickSaleSet.has(expense.quickSaleId)) }" :data-ai-id="`settlement-expense-${expense.id}`"><input type="checkbox" :checked="isExpenseSelected(expense)" :disabled="Boolean(expense.saleId || expense.quickSaleId)" @change="updateExpense(expense, ($event.target as HTMLInputElement).checked)"><span><strong>{{ expense.name }} ¥{{ expense.amount }}</strong><small>{{ expense.payerUsername }} 支付 · {{ expense.saleId ? '已关联销售' : expense.quickSaleId ? '已关联快速售出' : '未关联销售' }}</small></span></label>
@@ -226,11 +275,12 @@ onMounted(load)
          <div class="list transfer-list" data-ai-id="settlement-preview-transfers"><van-empty v-if="!currentPreview.transfers.length" description="无需转账" /><div v-for="transfer in currentPreview.transfers" :key="`${transfer.payerUserId}-${transfer.payeeUserId}`" class="transfer-row" :data-ai-id="`settlement-transfer-${transfer.payerUserId}-${transfer.payeeUserId}`"><div class="transfer-route"><strong>{{ transfer.payerUsername }}</strong><span>转给</span><strong>{{ transfer.payeeUsername }}</strong></div><b>¥{{ transfer.amount }}</b></div></div>
       </section>
     </main>
-    <footer v-if="!loading && !error" class="footer"><van-button block type="primary" :loading="submitting" :disabled="submitting" @click="next">{{ step === 3 ? '确认账单' : '下一步' }}</van-button></footer>
+    <footer v-if="!loading && !error" class="footer"><van-button block type="primary" :loading="submitting" :disabled="submitting" data-ai-id="settlement-next" @click="next">{{ step === 3 ? '确认账单' : '下一步' }}</van-button></footer>
     <van-dialog v-model:show="showConfirm" title="确认账单" show-cancel-button :confirm-button-text="submitting ? '确认中' : '确认账单'" :confirm-button-disabled="submitting" data-ai-id="settlement-confirm-dialog" @confirm="confirm"><p class="dialog-note">确认后，本次选择的销售、费用和利润比例会锁定，不能再次结账。确认继续？</p><template #footer><div class="dialog-actions"><van-button plain :disabled="submitting" @click="showConfirm = false">取消</van-button><van-button type="primary" :loading="submitting" data-ai-id="settlement-confirm" @click="confirm">确认账单</van-button></div></template></van-dialog>
   </div>
 </template>
 
 <style scoped>
-.settlement-create-page{min-height:100vh;padding-bottom:80px;background:#f5f7fb}.settlement-create-page :deep(.van-nav-bar){position:sticky;top:0;z-index:2}.content{padding:16px}.steps{display:flex;justify-content:space-between;margin:2px 0 18px;color:#8993a7;font-size:12px}.steps .active{color:#3657c8}.section-head{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px}.content h2{margin:0;font-size:17px}.text-button{min-height:36px;border:0;background:transparent;color:#3657c8;font:inherit}.list{overflow:hidden;border-radius:10px;background:#fff}.choice-row,.field-row{display:flex;min-height:62px;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #e4e8f0}.choice-row:last-child,.field-row:last-child,.result-row:last-child{border:0}.choice-row input{width:20px;height:20px;accent-color:#3657c8}.choice-row span,.result-main>div{min-width:0;flex:1}.choice-row strong,.choice-row small,.result-main strong,.result-main small{display:block}.choice-row small,.result-main small,.muted{margin-top:5px;color:#71809a;font-size:12px;line-height:1.45}.choice-row b{white-space:nowrap;font-size:14px}.choice-row.disabled{opacity:.48}.field-row{min-height:62px;justify-content:space-between}.readonly-row{display:flex;min-height:52px;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #e4e8f0}.readonly-row:last-child{border:0}.readonly-row b{font-size:14px}.cost-total{display:flex;justify-content:space-between;padding:12px;border-bottom:1px solid #e4e8f0;color:#536078}.cost-total strong{color:#172033}.field-row :deep(.van-cell){width:116px;height:38px;min-height:38px;padding:0 10px;border:1px solid #cfd6e2;border-radius:8px}.field-row :deep(.van-field__body),.field-row :deep(.van-field__control){height:36px;min-height:36px;line-height:36px;font-size:16px}.percent{display:flex;width:124px;align-items:center;gap:4px}.percent :deep(.van-cell){width:100px}.summary{display:grid;grid-template-columns:1fr 1fr;gap:1px;overflow:hidden;border-radius:10px;background:#e4e8f0}.summary div{padding:12px;background:#fff}.summary small,.summary strong{display:block}.summary small{color:#71809a;font-size:12px}.summary strong{margin-top:6px;font-size:17px}.loss,.payable{color:#b42318}.receivable{color:#15803d}.result-title{margin:22px 0 8px!important}.result-row{border-bottom:1px solid #e4e8f0}.result-main{display:flex;min-height:66px;align-items:center;gap:10px;padding:10px 12px}.result-main b{white-space:nowrap;font-size:14px}.result-formula{overflow-wrap:anywhere}.result-details{border-top:0}.result-details summary{position:relative;min-height:44px;padding:0 12px;cursor:pointer;color:#536078;font-size:13px;line-height:44px}.result-details summary::before{position:absolute;top:0;left:12px;width:48px;border-top:1px solid #e4e8f0;content:''}.calculation-detail{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 12px 12px;color:#71809a;font-size:12px;line-height:1.45}.transfer-list :deep(.van-empty){padding:12px}.transfer-row{display:grid;grid-template-columns:minmax(0,1fr) auto;min-height:62px;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid #e4e8f0}.transfer-row:last-child{border:0}.transfer-route{display:flex;min-width:0;align-items:center;gap:7px;flex-wrap:wrap;color:#536078;font-size:13px}.transfer-route strong{color:#172033;font-size:14px;overflow-wrap:anywhere}.transfer-row b{white-space:nowrap;color:#3657c8;font-size:14px}.footer{position:fixed;right:0;bottom:0;left:0;z-index:3;max-width:430px;margin:auto;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #e4e8f0;background:#fff}.footer :deep(.van-button){min-height:44px}.dialog-note{margin:0;padding:0 16px;color:#536078;line-height:1.5}.dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}.dialog-actions :deep(.van-button){min-height:44px}.state{display:grid;min-height:60vh;place-items:center}
+.member-filter{overflow:hidden;border-radius:10px;--van-dropdown-menu-height:48px;--van-dropdown-menu-box-shadow:none}.member-filter :deep(.van-dropdown-menu__title){max-width:100%;font-size:14px}.member-filter-panel{display:flex;max-height:60vh;flex-direction:column;background:#fff}.member-filter-hint{margin:0;padding:12px 16px;color:#71809a;font-size:12px;line-height:1.5}.member-filter-options{overflow-y:auto;min-height:0;flex:1;padding:0 16px}.member-filter-option{min-height:48px;padding:8px 0}.member-filter-option :deep(.van-checkbox__label){overflow-wrap:anywhere}.member-filter-actions{display:grid;flex-shrink:0;grid-template-columns:1fr 1fr;gap:12px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #e4e8f0}.member-filter-actions :deep(.van-button){min-height:44px}.filter-summary{margin:8px 0;color:#71809a;font-size:12px;line-height:1.5}.text-button:disabled{color:#8993a7}
+.settlement-create-page{min-height:100vh;padding-bottom:80px;background:#f5f7fb}.settlement-create-page :deep(.van-nav-bar){position:sticky;top:0;z-index:2}.content{padding:16px}.steps{display:flex;justify-content:space-between;margin:2px 0 18px;color:#8993a7;font-size:12px}.steps .active{color:#3657c8}.section-head{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px}.content h2{margin:0;font-size:17px}.text-button{min-width:44px;min-height:44px;border:0;background:transparent;color:#3657c8;font:inherit}.list{overflow:hidden;border-radius:10px;background:#fff}.choice-row,.field-row{display:flex;min-height:62px;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #e4e8f0}.choice-row:last-child,.field-row:last-child,.result-row:last-child{border:0}.choice-row input{width:20px;height:20px;accent-color:#3657c8}.choice-row span,.result-main>div{min-width:0;flex:1}.choice-row strong,.choice-row small,.result-main strong,.result-main small{display:block}.choice-row small,.result-main small,.muted{margin-top:5px;color:#71809a;font-size:12px;line-height:1.45}.choice-row b{white-space:nowrap;font-size:14px}.choice-row.disabled{opacity:.48}.field-row{min-height:62px;justify-content:space-between}.readonly-row{display:flex;min-height:52px;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #e4e8f0}.readonly-row:last-child{border:0}.readonly-row b{font-size:14px}.cost-total{display:flex;justify-content:space-between;padding:12px;border-bottom:1px solid #e4e8f0;color:#536078}.cost-total strong{color:#172033}.field-row :deep(.van-cell){width:116px;height:38px;min-height:38px;padding:0 10px;border:1px solid #cfd6e2;border-radius:8px}.field-row :deep(.van-field__body),.field-row :deep(.van-field__control){height:36px;min-height:36px;line-height:36px;font-size:16px}.percent{display:flex;width:124px;align-items:center;gap:4px}.percent :deep(.van-cell){width:100px}.summary{display:grid;grid-template-columns:1fr 1fr;gap:1px;overflow:hidden;border-radius:10px;background:#e4e8f0}.summary div{padding:12px;background:#fff}.summary small,.summary strong{display:block}.summary small{color:#71809a;font-size:12px}.summary strong{margin-top:6px;font-size:17px}.loss,.payable{color:#b42318}.receivable{color:#15803d}.result-title{margin:22px 0 8px!important}.result-row{border-bottom:1px solid #e4e8f0}.result-main{display:flex;min-height:66px;align-items:center;gap:10px;padding:10px 12px}.result-main b{white-space:nowrap;font-size:14px}.result-formula{overflow-wrap:anywhere}.result-details{border-top:0}.result-details summary{position:relative;min-height:44px;padding:0 12px;cursor:pointer;color:#536078;font-size:13px;line-height:44px}.result-details summary::before{position:absolute;top:0;left:12px;width:48px;border-top:1px solid #e4e8f0;content:''}.calculation-detail{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 12px 12px;color:#71809a;font-size:12px;line-height:1.45}.transfer-list :deep(.van-empty){padding:12px}.transfer-row{display:grid;grid-template-columns:minmax(0,1fr) auto;min-height:62px;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid #e4e8f0}.transfer-row:last-child{border:0}.transfer-route{display:flex;min-width:0;align-items:center;gap:7px;flex-wrap:wrap;color:#536078;font-size:13px}.transfer-route strong{color:#172033;font-size:14px;overflow-wrap:anywhere}.transfer-row b{white-space:nowrap;color:#3657c8;font-size:14px}.footer{position:fixed;right:0;bottom:0;left:0;z-index:3;max-width:430px;margin:auto;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #e4e8f0;background:#fff}.footer :deep(.van-button){min-height:44px}.dialog-note{margin:0;padding:0 16px;color:#536078;line-height:1.5}.dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}.dialog-actions :deep(.van-button){min-height:44px}.state{display:grid;min-height:60vh;place-items:center}
 </style>

@@ -6,3 +6,6 @@ dist/
 *.log
 .DS_Store
 .tmp/
+
+# Generated local acceptance artifacts (screenshots, reports, recordings).
+**/evidence/
