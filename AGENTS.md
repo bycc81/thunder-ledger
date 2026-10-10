@@ -29,6 +29,7 @@ ThunderLedger 是 Vue + Fastify + PostgreSQL 的经营管理后台单体应用�
 - 前端规范：`docs/standards/frontend/frontend-guidelines.md`（当前移动端规范）
 - 历史桌面端规范：`docs/standards/frontend/frontend-guidelines-pc-legacy.md`，仅用于追溯，不作为新页面实现依据。
 - 凡涉及 `apps/web`、Vue、TypeScript、Less、路由、页面、组件、表单、表格或视觉样式的任务，必须先读取并遵循当前移动端前端规范。
+- 同类下拉多选统一复用 `apps/web/src/components/AppMultiSelect.vue`，标签与选择框横向对齐；页面提供选项、业务筛选和定位 ID，公共组件负责选择交互。具体契约与用法见当前移动端前端规范，不在页面复制实现。
 - 关键业务 DOM 必须使用稳定的语义化 `data-ai-id`：页面区域、交互控件、弹窗、列表项和危险操作必填；命名使用 ASCII kebab-case；不得把用户输入直接拼入；不得用于 CSS；UI 改版需保留既有 ID。
 - `data-ai-id` 通用规则见 `docs/standards/frontend/data-ai-id-guidelines.md`；具体需求在变更目录维护 `data-ai-id-registry.md`。
 - 关键业务 DOM 必须使用稳定的语义化 `data-ai-id`：页面区域、交互控件、弹窗、列表项和危险操作必填；命名使用 ASCII kebab-case；不得把用户输入直接拼入；不得用于 CSS；UI 改版需保留既有 ID。
@@ -36,6 +37,10 @@ ThunderLedger 是 Vue + Fastify + PostgreSQL 的经营管理后台单体应用�
 - 新模块、新页面必须在技术设计前完成产品与 UX 定义和可运行 HTML 原型确认；确认后，在 `design.md` 的页面/API 契约章节确定字段、操作、权限和接口，再设计或调整 API。已有页面小修不触发该阶段，明显改变布局、信息层级、主流程或操作路径时先询问用户是否需要原型。具体顺序以 `docs/standards/ai-workflow.md` 和 `ai-change-workflow` Skill 为准。
 - 部署说明：`docs/deployment.md`
 - 安全规范：`docs/standards/security.md`
+
+## 列表排序规范
+
+- 记录类列表默认按业务发生时间倒序；没有业务时间时按创建/加入时间倒序。同页不同来源先合并再排序，筛选后仍保持倒序，同时间以创建时间和稳定 ID 保持确定顺序。图片、模板款式、单据内商品项、结算人员结果、转账明细及汇总分组按手动或业务顺序展示，不能机械倒序。
 
 ## 文档编码与路径规范
 

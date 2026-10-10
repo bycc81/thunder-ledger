@@ -3,9 +3,10 @@ import { computed, onMounted, ref } from 'vue'
 import { showFailToast, showSuccessToast } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
 import { api, type Expense, type QuickSale, type Sale } from '../api'
-import { useWorkspaceStore } from '../stores/workspace'
+import { useWorkspaceStore, type BatchMember } from '../stores/workspace'
 import { formatDateTime } from '../utils/dateTime'
 import AppBottomNavigation from '../components/AppBottomNavigation.vue'
+import AppMultiSelect from '../components/AppMultiSelect.vue'
 const route = useRoute()
 const router = useRouter()
 const store = useWorkspaceStore()
@@ -14,6 +15,34 @@ const tab = ref<'sales' | 'expenses'>('sales')
 const sales = ref<Sale[]>([])
 const quickSales = ref<QuickSale[]>([])
 const expenses = ref<Expense[]>([])
+const members = ref<BatchMember[]>([])
+const keyword = ref('')
+const selectedMemberIds = ref<string[]>([])
+const memberOptions = computed(() => members.value.map((member) => ({ value: member.id, label: member.username })))
+const hasFilters = computed(() => Boolean(keyword.value.trim() || selectedMemberIds.value.length))
+type SaleRecord = (Sale & { source: 'sale' }) | QuickSale
+const visibleSales = computed(() => {
+  const search = keyword.value.trim().toLowerCase()
+  const memberIds = new Set(selectedMemberIds.value)
+  const records: SaleRecord[] = [
+    ...sales.value.map((sale) => ({ ...sale, source: 'sale' as const })),
+    ...quickSales.value
+  ]
+  return records.filter((sale) => {
+    const names = sale.source === 'sale'
+      ? [sale.productName, sale.productGroupName, sale.variantName, sale.displayName]
+      : [sale.displayName]
+    return (!search || names.some((name) => name?.toLowerCase().includes(search)))
+      && (!memberIds.size || memberIds.has(sale.sellerUserId))
+  }).sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt)
+    || Date.parse(b.createdAt) - Date.parse(a.createdAt)
+    || a.source.localeCompare(b.source)
+    || a.id.localeCompare(b.id))
+})
+function clearFilters() {
+  keyword.value = ''
+  selectedMemberIds.value = []
+}
 const loading = ref(true)
 const error = ref('')
 const showReverse = ref(false)
@@ -29,14 +58,16 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [s, qs, e] = await Promise.all([
+    const [s, qs, e, m] = await Promise.all([
       api.get<Sale[]>(`/batches/${batchId.value}/sales`),
       api.get<QuickSale[]>(`/batches/${batchId.value}/quick-sales`),
-      api.get<Expense[]>(`/batches/${batchId.value}/expenses`)
+      api.get<Expense[]>(`/batches/${batchId.value}/expenses`),
+      api.get<BatchMember[]>(`/batches/${batchId.value}/members`)
     ])
     sales.value = s.data
     quickSales.value = qs.data
     expenses.value = e.data
+    members.value = m.data
   } catch {
     error.value = '交易记录加载失败，请重试'
   } finally {
@@ -49,8 +80,9 @@ function openSale(saleId: string) {
 function openQuickSale(id: string) {
   void router.push(`/batches/${batchId.value}/quick-sales/${id}`)
 }
-function askQuickSale(id: string) {
-  ask('quickSale', id)
+function openRecord(sale: SaleRecord) {
+  if (sale.source === 'sale') openSale(sale.id)
+  else openQuickSale(sale.id)
 }
 const reverseTitle = computed(() => (reverseType.value === 'sale' ? '撤销销售' : reverseType.value === 'quickSale' ? '撤销快速售出' : '撤销其他费用'))
 function ask(type: 'sale' | 'expense' | 'quickSale', id: string) {
@@ -83,12 +115,14 @@ onMounted(async () => {
 </script>
 <template>
   <div class="transaction-page" data-ai-id="transaction-page">
-    <van-nav-bar title="交易" left-text="返回" left-arrow @click-left="router.push(`/batches/${batchId}`)" />
+    <van-nav-bar title="交易" left-text="返回" left-arrow data-ai-id="transaction-back" @click-left="router.push(`/batches/${batchId}`)" />
     <div v-if="loading" class="state"><van-loading /></div>
-    <van-empty v-else-if="error" :description="error" />
+    <van-empty v-else-if="error" :description="error" data-ai-id="transaction-error">
+      <van-button type="primary" data-ai-id="transaction-retry" @click="load">重试</van-button>
+    </van-empty>
     <main v-else class="content">
-      <div class="tabs">
-        <button :class="{ active: tab === 'sales' }" @click="tab = 'sales'">销售</button><button :class="{ active: tab === 'expenses' }" @click="tab = 'expenses'">其他费用</button>
+      <div class="tabs" data-ai-id="transaction-tabs">
+        <button data-ai-id="transaction-sales-tab" :class="{ active: tab === 'sales' }" @click="tab = 'sales'">销售</button><button data-ai-id="transaction-expenses-tab" :class="{ active: tab === 'expenses' }" @click="tab = 'expenses'">其他费用</button>
       </div>
       <section v-if="tab === 'sales'" class="sale-list" data-ai-id="sale-list">
         <header>
@@ -105,41 +139,55 @@ onMounted(async () => {
             ></span
           >
         </header>
-        <van-empty v-if="!sales.length && !quickSales.length" description="还没有销售记录" />
+        <div class="sale-filters" data-ai-id="transaction-sale-filters">
+          <div data-ai-id="transaction-product-keyword">
+            <van-search v-model="keyword" placeholder="输入商品名称关键词" aria-label="商品名称关键词" clearable />
+          </div>
+          <AppMultiSelect
+            v-model="selectedMemberIds"
+            class="member-filter"
+            :options="memberOptions"
+            label="售出人员"
+            placeholder="全部人员"
+            count-unit="人"
+            hint="可多选，未选择时显示全部人员"
+            empty-text="本批次暂无人员"
+            ai-id="transaction-member-filter"
+            empty-ai-id="transaction-members-empty"
+          />
+        </div>
+        <div class="filter-summary" data-ai-id="transaction-filter-summary">
+          <span role="status">共 {{ visibleSales.length }} 笔 · 售出时间倒序</span>
+          <button v-if="hasFilters" class="clear-filters" data-ai-id="transaction-clear-filters" @click="clearFilters">清除筛选</button>
+        </div>
+        <van-empty v-if="!visibleSales.length" :description="hasFilters ? '没有符合筛选条件的销售记录' : '还没有销售记录'" data-ai-id="transaction-sales-empty" />
         <article
-          v-for="sale in sales"
-          :key="sale.id"
+          v-for="sale in visibleSales"
+          :key="`${sale.source}-${sale.id}`"
           class="item sale-item"
           tabindex="0"
           role="button"
-          :aria-label="`查看${sale.displayName || sale.productName}销售详情`"
-          :data-ai-id="`sale-item-${sale.id}`"
-          @click="openSale(sale.id)"
-          @keydown.enter="openSale(sale.id)"
+          :aria-label="`查看${sale.displayName || (sale.source === 'sale' ? sale.productName : '')}销售详情`"
+          :data-ai-id="`${sale.source === 'sale' ? 'sale' : 'quick-sale'}-item-${sale.id}`"
+          @click="openRecord(sale)"
+          @keydown.enter.self="openRecord(sale)"
+          @keydown.space.self.prevent="openRecord(sale)"
         >
-          <div class="item-main">
-            <strong>{{ sale.displayName || sale.productName }} · ¥{{ sale.totalPrice }}</strong
-            ><span>{{ sale.sellerUsername }} 实收 ¥{{ sale.receivedAmount }} · {{ sale.quantity }} 件</span
-            ><small>手续费 ¥{{ sale.serviceFee }}{{ sale.salesChannel ? ` · ${sale.salesChannel}` : '' }} · {{ formatDateTime(sale.occurredAt) }}</small>
+          <div v-if="sale.source === 'sale'" class="item-main">
+            <strong>{{ sale.displayName || sale.productName }} · ¥{{ sale.totalPrice }}</strong>
+            <span>{{ sale.sellerUsername }} 实收 ¥{{ sale.receivedAmount }} · {{ sale.quantity }} 件</span>
+            <small>手续费 ¥{{ sale.serviceFee }}{{ sale.salesChannel ? ` · ${sale.salesChannel}` : '' }} · {{ formatDateTime(sale.occurredAt) }}</small>
           </div>
-          <div class="item-side item-side--quick-sale">
-            <van-tag type="primary" plain class="source-tag" :data-ai-id="`sale-source-${sale.id}`">普通销售</van-tag
-            ><van-tag v-if="sale.reversalReason" type="default" class="status-tag status-tag--reversed" :data-ai-id="`sale-status-${sale.id}`">已撤销</van-tag
-            ><van-tag v-else-if="sale.settled" type="success" class="status-tag status-tag--settled" :data-ai-id="`sale-status-${sale.id}`">已结账</van-tag
-            ><button v-else-if="canEdit" class="reverse" title="撤销销售" :data-ai-id="`sale-reversal-${sale.id}`" @click.stop="ask('sale', sale.id)">撤销</button>
-          </div>
-        </article>
-        <article v-for="sale in quickSales" :key="sale.id" class="item sale-item" :data-ai-id="`quick-sale-item-${sale.id}`" @click="openQuickSale(sale.id)">
-          <div class="item-main">
+          <div v-else class="item-main">
             <strong>{{ sale.displayName }} · {{ sale.quantity }} 件</strong>
             <span>{{ sale.sellerUsername }} 实收 ¥{{ sale.receivedAmount }}</span>
             <small>{{ sale.salesChannel ? `${sale.salesChannel} · ` : '' }}{{ formatDateTime(sale.occurredAt) }}</small>
           </div>
           <div class="item-side item-side--quick-sale">
-            <van-tag type="primary" plain class="source-tag" :data-ai-id="`quick-sale-source-${sale.id}`">快速售出</van-tag>
-            <van-tag v-if="sale.reversalReason" type="default" class="status-tag status-tag--reversed" :data-ai-id="`quick-sale-status-${sale.id}`">已撤销</van-tag>
-            <van-tag v-else-if="sale.settled" type="success" class="status-tag status-tag--settled" :data-ai-id="`quick-sale-status-${sale.id}`">已结账</van-tag>
-            <button v-else-if="canEdit" class="reverse" title="撤销快速售出" :data-ai-id="`quick-sale-reversal-${sale.id}`" @click.stop="askQuickSale(sale.id)">撤销</button>
+            <van-tag type="primary" plain class="source-tag" :data-ai-id="`${sale.source === 'sale' ? 'sale' : 'quick-sale'}-source-${sale.id}`">{{ sale.source === 'sale' ? '普通销售' : '快速售出' }}</van-tag>
+            <van-tag v-if="sale.reversalReason" type="default" class="status-tag status-tag--reversed" :data-ai-id="`${sale.source === 'sale' ? 'sale' : 'quick-sale'}-status-${sale.id}`">已撤销</van-tag>
+            <van-tag v-else-if="sale.settled" type="success" class="status-tag status-tag--settled" :data-ai-id="`${sale.source === 'sale' ? 'sale' : 'quick-sale'}-status-${sale.id}`">已结账</van-tag>
+            <button v-else-if="canEdit" class="reverse" :title="sale.source === 'sale' ? '撤销销售' : '撤销快速售出'" :data-ai-id="`${sale.source === 'sale' ? 'sale' : 'quick-sale'}-reversal-${sale.id}`" @click.stop="ask(sale.source === 'sale' ? 'sale' : 'quickSale', sale.id)">撤销</button>
           </div>
         </article>
       </section>
@@ -162,8 +210,8 @@ onMounted(async () => {
         </article>
       </section>
     </main>
-    <van-dialog v-model:show="showReverse" :title="reverseTitle" show-cancel-button @confirm="reverse"
-      ><van-field v-model="reverseReason" label="撤销原因" type="textarea" rows="2" /></van-dialog
+    <van-dialog v-model:show="showReverse" :title="reverseTitle" show-cancel-button data-ai-id="transaction-reversal-dialog" @confirm="reverse"
+      ><van-field v-model="reverseReason" label="撤销原因" type="textarea" rows="2" data-ai-id="transaction-reversal-reason" /></van-dialog
     ><AppBottomNavigation />
   </div>
 </template>
@@ -210,6 +258,39 @@ onMounted(async () => {
 }
 .sale-list > header {
   justify-content: flex-end;
+}
+.sale-filters {
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid #edf0f5;
+  border-radius: 10px;
+  background: #fff;
+}
+.sale-filters :deep(.van-search) {
+  padding: 10px 12px;
+}
+.sale-filters :deep(.van-search__content) {
+  min-height: 44px;
+}
+.member-filter {
+  padding: 0 12px 12px;
+}
+.filter-summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #71809a;
+  font-size: 12px;
+}
+.clear-filters {
+  min-height: 44px;
+  border: 0;
+  padding: 0 8px;
+  background: transparent;
+  color: #3657c8;
+  font: inherit;
 }
 .item {
   display: flex;

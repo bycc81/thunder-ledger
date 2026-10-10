@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const output = fileURLToPath(new URL('./evidence/', import.meta.url));
+const output = process.env.THUNDERLEDGER_EVIDENCE_DIR || fileURLToPath(new URL('./evidence/', import.meta.url));
 await mkdir(output, { recursive: true });
 assert.ok(process.env.SESSION_SECRET, 'Provide an isolated SESSION_SECRET through the environment');
 assert.ok(process.env.DATABASE_URL, 'Provide a fixture DATABASE_URL through the environment');
@@ -26,7 +26,8 @@ const sale = (n, member, source, name) => ({
   productName: name, productGroupName: null, variantName: null, quantity: 1,
   totalPriceCents: '5000', consumedCostCents: '2000', serviceFeeCents: '0',
   sellerUserId: fixtureMembers[member].id, sellerUsername: fixtureMembers[member].username,
-  occurredAt: '2026-10-09T07:53:00.000Z',
+  occurredAt: ({ 11: '2026-10-10T00:00:00Z', 12: '2026-10-09T23:00:00Z', 13: '2026-10-09T22:00:00Z', 21: '2026-10-10T09:00:00+08:00', 22: '2026-10-10T08:00:00+08:00' })[n],
+  createdAt: n === 11 ? '2026-10-10T02:00:00Z' : '2026-10-10T01:00:00Z',
 });
 const normal = [sale(11, 0, 'sale', 'MMN单封 · 樱'), sale(12, 1, 'sale', 'MMN单封 · 樱'), sale(13, 0, 'sale', 'wvs镜子卡 · 恩')];
 const quick = [sale(21, 0, 'quick_sale', '组合快速售出'), sale(22, 1, 'quick_sale', '另一笔快速售出')];
@@ -38,8 +39,10 @@ const expenses = [
 let emptySales = false, batchRole = 'owner', failDraft = false;
 let recommendationPayload, previewPayload;
 let released = 0;
+const capturedQueries = [];
 const result = (rows) => ({ rows, rowCount: rows.length });
 const query = async (sql, params = []) => {
+  if (/^SELECT\b/i.test(sql.trim())) capturedQueries.push({ sql, params });
   if (sql.includes('SELECT username,status,session_version FROM users')) return result([{ username: 'follow', status: 'active', session_version: 1 }]);
   if (sql.includes('SELECT workspace_id FROM collaboration_batches')) return result([{ workspace_id: workspaceId }]);
   if (sql.includes('SELECT wm.role FROM workspace_members')) return result([{ role: 'editor' }]);
@@ -83,6 +86,7 @@ try {
   assert.deepEqual(draft.members, fixtureMembers);
   assert.equal(draft.sales.length, 3);
   assert.equal(draft.transactions.filter((item) => item.source === 'quick_sale').length, 2);
+  assert.deepEqual(draft.transactions.map((item) => item.id), [21, 11, 22, 12, 13].map(uuid), 'Global descending business time and creation-time ties across sources/timezones');
   for (const item of draft.transactions) assert.ok(draft.members.some((member) => member.id === item.sellerUserId));
   const recommendation = await request('POST', 'recommendation', { saleIds: [uuid(11), uuid(13)], quickSaleIds: [uuid(21)] });
   assert.equal(recommendation.statusCode, 200);
@@ -120,7 +124,7 @@ try {
   browser = await chromium.launch({ executablePath: process.env.CHROME_EXECUTABLE_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true, args: ['--disable-gpu', '--renderer-process-limit=1'] });
   const observedIds = new Set();
   for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }]) {
-    const context = await browser.newContext({ viewport });
+    const context = await browser.newContext({ viewport, hasTouch: true });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
@@ -131,7 +135,7 @@ try {
       assert.equal(ids.length, new Set(ids).size, 'Duplicate visible data-ai-id');
       ids.forEach((id) => observedIds.add(id));
     };
-    const open = async () => { await byId('settlement-member-filter-trigger').click(); await byId('settlement-member-filter-panel').waitFor({ state: 'visible' }); await page.waitForFunction(() => !document.querySelector('.van-dropdown-item__content')?.className.match(/enter-(active|from)/)); };
+    const open = async () => { await byId('settlement-member-filter-trigger').click(); await byId('settlement-member-filter-panel').waitFor({ state: 'visible' }); await page.waitForFunction(() => !document.querySelector('.multi-select-popover')?.className.match(/enter-(active|from)/)); };
     const filter = async (ids) => {
       await open();
       await byId('settlement-member-filter-reset').click();
@@ -145,13 +149,105 @@ try {
     await byId('settlement-member-filter-trigger').waitFor();
     assert.equal(await rows().count(), 5);
     await page.screenshot({ animations: 'disabled', path: path.join(output, `${viewport.width}-default.png`) });
+    const search = byId('settlement-product-keyword').locator('input');
+    const expectVisible = async (ids) => {
+      await page.waitForFunction((expected) => JSON.stringify([...document.querySelectorAll('[data-ai-id="settlement-sales-list"] .choice-row')].map((node) => node.dataset.aiId)) === JSON.stringify(expected), ids);
+    };
+    const allRows = [21, 11, 22, 12, 13].map((n) => `settlement-${n >= 20 ? 'quick-sale' : 'sale'}-${uuid(n)}`);
+    await expectVisible(allRows);
+    await byId('settlement-sale-type-quick-sale').click();
+    await expectVisible([21, 22].map((n) => `settlement-quick-sale-${uuid(n)}`));
+    await search.fill('  快速  ');
+    await filter([uuid(1)]);
+    await expectVisible([`settlement-quick-sale-${uuid(21)}`]);
+    await byId('settlement-sales-select-all').click();
+    assert.equal(await checked(`settlement-expense-${uuid(32)}`), true);
+    await byId('settlement-sale-type-sale').click();
+    assert.equal(await rows().count(), 0, 'Type, keyword and person filters intersect');
+    assert.match(await summary(), /筛选外 1 笔/);
+    await search.fill('');
+    await filter([]);
+    await expectVisible([11, 12, 13].map((n) => `settlement-sale-${uuid(n)}`));
+    await byId('settlement-sales-clear').click();
+    assert.match(await summary(), /已选 1 笔/);
+    assert.equal(await checked(`settlement-expense-${uuid(32)}`), true, 'Hidden quick sale still drives its expense');
+    await snapshotIds();
+    await page.screenshot({ animations: 'disabled', path: path.join(output, `${viewport.width}-type-filter.png`) });
+    await byId('settlement-sale-type-all').focus();
+    await byId('settlement-sale-type-all').press('Space');
+    assert.equal(await byId('settlement-sale-type-all').getAttribute('aria-pressed'), 'true');
+    await expectVisible(allRows);
+    await byId('settlement-sales-clear').click();
+    assert.match(await summary(), /已选 0 笔/);
+    await search.fill('  mMn  ');
+    await expectVisible([`settlement-sale-${uuid(11)}`, `settlement-sale-${uuid(12)}`]);
+    await snapshotIds();
+    await page.screenshot({ animations: 'disabled', path: path.join(output, `${viewport.width}-keyword.png`) });
+    await filter([uuid(1)]);
+    await expectVisible([`settlement-sale-${uuid(11)}`]);
+    await byId('settlement-sales-select-all').click();
+    assert.equal(await checked(`settlement-expense-${uuid(31)}`), true);
+    await search.fill('组合');
+    await expectVisible([`settlement-quick-sale-${uuid(21)}`]);
+    assert.match(await summary(), /已选 1 笔.*筛选外 1 笔/);
+    await byId('settlement-sales-select-all').click();
+    assert.equal(await checked(`settlement-expense-${uuid(32)}`), true);
+    await snapshotIds();
+    await page.screenshot({ animations: 'disabled', path: path.join(output, `${viewport.width}-keyword-member.png`) });
+    await filter([uuid(2)]);
+    await expectVisible([]);
+    assert.match(await summary(), /已选 2 笔.*筛选外 2 笔/);
+    assert.equal(await byId('settlement-sales-select-all').isDisabled(), true);
+    assert.equal(await byId('settlement-expenses-list').locator('.choice-row').count(), 3);
+    await snapshotIds();
+    await page.screenshot({ animations: 'disabled', path: path.join(output, `${viewport.width}-keyword-empty.png`) });
+    await byId('settlement-next').click();
+    await byId('settlement-profit-allocation').waitFor();
+    assert.deepEqual(recommendationPayload, { saleIds: [uuid(11)], quickSaleIds: [uuid(21)] });
+    await byId('settlement-next').click();
+    await byId('settlement-preview').waitFor();
+    assert.deepEqual(previewPayload.saleIds, [uuid(11)]);
+    assert.deepEqual(previewPayload.quickSaleIds, [uuid(21)]);
+    assert.deepEqual(new Set(previewPayload.expenseIds), new Set([uuid(31), uuid(32)]));
+    await page.getByText('返回', { exact: true }).click();
+    await page.getByText('返回', { exact: true }).click();
+    await byId('settlement-product-keyword').waitFor();
+    assert.equal(await search.inputValue(), '组合');
+    await expectVisible([]);
+    await filter([uuid(1)]);
+    await expectVisible([`settlement-quick-sale-${uuid(21)}`]);
+    await byId('settlement-sales-clear').click();
+    assert.match(await summary(), /已选 1 笔.*筛选外 1 笔/);
+    assert.equal(await checked(`settlement-expense-${uuid(31)}`), true);
+    assert.equal(await checked(`settlement-expense-${uuid(32)}`), false);
+    await search.fill('不存在的商品');
+    await expectVisible([]);
+    assert.match(await byId('settlement-sales-empty').innerText(), /当前筛选条件下暂无待结算销售/);
+    await search.fill('   ');
+    await expectVisible([`settlement-quick-sale-${uuid(21)}`, `settlement-sale-${uuid(11)}`, `settlement-sale-${uuid(13)}`]);
+    await filter([]);
+    assert.equal(await rows().count(), 5);
+    await byId('settlement-sales-clear').click();
+    assert.match(await summary(), /已选 0 笔/);
+    await search.focus();
+    await byId('settlement-product-keyword').locator('.van-field__clear').tap();
+    assert.equal(await search.inputValue(), '');
+    assert.equal(await rows().count(), 5);
     await open();
     assert.equal(await byId('settlement-member-filter-options').locator('.van-checkbox').count(), 3);
+    const field = byId('settlement-member-filter');
+    const labelBox = await field.locator('.select-label').boundingBox();
+    const selectBox = await field.getByRole('combobox').boundingBox();
+    assert.ok(labelBox.x + labelBox.width < selectBox.x, 'Label must be left of select');
+    assert.ok(Math.abs(labelBox.y + labelBox.height / 2 - selectBox.y - selectBox.height / 2) < 2, 'Label and select must align on one row');
+    assert.equal(await page.locator('.van-overlay').count(), 0, 'No select overlay');
+
     await snapshotIds();
     await page.screenshot({ animations: 'disabled', path: path.join(output, `${viewport.width}-dropdown.png`) });
     await byId(`settlement-member-filter-option-${uuid(1)}`).click();
     // Dismiss without confirmation, then reopen: applied filter and checkbox draft stay unchanged.
-    await page.locator('.van-overlay').click({ position: { x: 10, y: 300 } });
+    await page.mouse.click(5, viewport.height - 100);
+    await byId('settlement-member-filter-panel').waitFor({ state: 'hidden' });
     await open();
     assert.equal(await byId(`settlement-member-filter-option-${uuid(1)}`).getAttribute('aria-checked'), 'false');
     await byId('settlement-member-filter-apply').click();
@@ -209,7 +305,7 @@ try {
     await page.getByText('请至少选择一笔销售', { exact: true }).waitFor();
     assert.equal(await byId('settlement-sales-list').isVisible(), true);
     // Check keyboard activation on the actual Vant trigger.
-    const trigger = byId('settlement-member-filter').locator('[role="button"]').first();
+    const trigger = byId('settlement-member-filter').locator('[role="combobox"]').first();
     await trigger.focus();
     await trigger.press('Enter');
     await byId('settlement-member-filter-panel').waitFor({ state: 'visible' });
@@ -244,9 +340,18 @@ try {
     await page.reload();
     await byId('settlement-sales-empty').waitFor();
     assert.equal(await rows().count(), 0);
+    memberRows = [];
+    await page.reload();
+    await byId('settlement-member-filter-trigger').waitFor();
+    await open();
+    await byId('settlement-member-filter-empty').waitFor();
+    await snapshotIds();
+    await page.screenshot({ animations: 'disabled', path: path.join(output, `${viewport.width}-no-members.png`) });
+    await byId('settlement-member-filter-apply').click();
+    memberRows = [...fixtureMembers];
     emptySales = false;
     assert.deepEqual(errors, []);
-    checks.push(`UI ${viewport.width}x${viewport.height}: all-member options, single/multi/reset/cancel, visible select/clear, hidden selections, empty state, linked expenses, recommendation/preview payload, back navigation, minimum selection, keyboard, duplicate names, long-list scroll, error/retry, no-data state, no overflow`);
+    checks.push(`UI ${viewport.width}x${viewport.height}: mixed business-time descending and timestamp ties, sale-type filter/intersection/hidden-selection/expense/keyboard, keyword/case/whitespace/clear, combined member filter, hidden keyword selections and actual recommendation/preview payload, all-member options, single/multi/reset/cancel, visible select/clear, hidden selections, empty state, linked expenses, recommendation/preview payload, back navigation, minimum selection, keyboard, duplicate names, long-list scroll, error/retry, no-data state, no overflow`);
     await context.close();
   }
   const registry = await readFile(new URL('./data-ai-id-registry.md', import.meta.url), 'utf8');
@@ -254,6 +359,7 @@ try {
     if (!id.includes('{')) assert.ok(observedIds.has(id), `Registered ID not observed: ${id}`);
   }
   checks.push('data-ai-id: registered static IDs observed; visible IDs unique; member/sale IDs stable');
+  await writeFile(path.join(output, 'queries.json'), JSON.stringify([...new Map(capturedQueries.map((item) => [item.sql, item])).values()], null, 2));
   await writeFile(path.join(output, 'results.json'), JSON.stringify({ checks, releasedClients: released, limitations: ['Database SQL results use synthetic fixtures; no live database or production data tested.', 'No confirmed bill is created; recommendation and preview are exercised.'] }, null, 2) + '\n');
   console.log(checks.join('\n'));
 } finally {
