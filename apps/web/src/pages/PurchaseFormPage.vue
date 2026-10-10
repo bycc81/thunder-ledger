@@ -7,7 +7,7 @@ import { useWorkspaceStore, type BatchMember } from '../stores/workspace';
 import AppBottomNavigation from '../components/AppBottomNavigation.vue';
 
 type Share = { userId: string; amount: string };
-type ProductGroup = { id: string; name: string; variants: Array<{ id: string; name: string | null }> };
+type ProductGroup = { createdAt: string; id: string; name: string; variants: Array<{ id: string; name: string | null }> };
 const route = useRoute();
 const router = useRouter();
 const store = useWorkspaceStore();
@@ -57,7 +57,8 @@ const groupCostsValid = computed(() => groupVariants.value.length > 0 && groupVa
 const blockedByAdjustment = computed(() => hasInventoryAdjustments.value);
 const purchaseTargetOptions = computed(() => {
   const variantIds = new Set(productGroups.value.flatMap((item) => item.variants.map((variant) => variant.id)));
-  return [...productGroups.value.map((item) => ({ text: `商品组 · ${item.name}`, value: `group:${item.id}` })), ...products.value.filter((item) => !variantIds.has(item.id)).map((item) => ({ text: item.name, value: `product:${item.id}` }))];
+  return [...productGroups.value.map((item) => ({ text: `商品组 · ${item.name}`, value: `group:${item.id}`, createdAt: item.createdAt })), ...products.value.filter((item) => !variantIds.has(item.id)).map((item) => ({ text: item.name, value: `product:${item.id}`, createdAt: item.createdAt }))]
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || a.value.localeCompare(b.value));
 });
 const purchaseTargetName = computed(() => groupMode.value ? `商品组 · ${group.value?.name ?? ''}` : products.value.find((item) => item.id === productId.value)?.name ?? '选择商品或商品组');
 const channelName = computed(() => channels.value.find((item) => item.id === channelId.value)?.name ?? '选择渠道');

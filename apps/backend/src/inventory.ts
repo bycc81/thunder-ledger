@@ -118,7 +118,7 @@ export async function registerInventoryRoutes(app: FastifyInstance): Promise<voi
       LEFT JOIN (SELECT product_id,SUM(quantity) AS quantity,SUM(consumed_cost_cents) AS cost FROM inventory_adjustments WHERE batch_id=$1 GROUP BY product_id) adj ON adj.product_id=ip.product_id
       LEFT JOIN (SELECT s.product_id,SUM(s.quantity) AS quantity,SUM(s.consumed_cost_cents) AS cost FROM sales s LEFT JOIN sale_reversals sr ON sr.sale_id=s.id WHERE s.batch_id=$1 AND sr.sale_id IS NULL GROUP BY s.product_id) sale ON sale.product_id=ip.product_id
       LEFT JOIN (SELECT qsc.product_id,SUM(qsc.quantity) AS quantity,SUM(qsc.consumed_cost_cents) AS cost FROM quick_sale_inventory_consumptions qsc JOIN quick_sale_items qsi ON qsi.id=qsc.quick_sale_item_id JOIN quick_sales qs ON qs.id=qsi.quick_sale_id LEFT JOIN quick_sale_reversals qsr ON qsr.quick_sale_id=qs.id WHERE qs.batch_id=$1 AND qsr.quick_sale_id IS NULL GROUP BY qsc.product_id) quick ON quick.product_id=ip.product_id
-      WHERE ip.batch_id=$1 GROUP BY ip.product_id,adj.quantity,adj.cost,sale.quantity,sale.cost,quick.quantity,quick.cost ORDER BY MAX(ip.created_at) DESC`, [request.params.batchId, context.workspaceId])).rows
+      WHERE ip.batch_id=$1 GROUP BY ip.product_id,adj.quantity,adj.cost,sale.quantity,sale.cost,quick.quantity,quick.cost ORDER BY MAX(ip.occurred_at) DESC,MAX(ip.created_at) DESC,ip.product_id`, [request.params.batchId, context.workspaceId])).rows
       .map((row: { productId: string; productName: string; availableQuantity: number; totalCostCents: string; purchaseCount: number }) => ({ ...row, totalCost: asMoney(row.totalCostCents) }));
   });
 
