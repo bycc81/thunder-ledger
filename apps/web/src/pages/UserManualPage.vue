@@ -75,7 +75,7 @@ function back() {
         <h2>采购、费用与结算</h2>
         <div class="rule-list">
           <article><b>购</b><div><strong>采购形成库存</strong><p>总成本允许为 0；成本承担合计必须等于总成本。</p></div></article>
-          <article id="expense"><b>费</b><div><strong>费用最多关联一种交易</strong><p>费用可关联普通销售或快速售出；关联后会随该交易自动进入结算。</p></div></article>
+          <article id="expense"><b>费</b><div><strong>费用最多关联一种交易</strong><p>费用可关联待结账的普通销售或快速售出；关联后会随该交易自动进入结算，撤销销售时也会同步撤销关联费用。需要独立保留的实际支出应记录为独立费用。</p></div></article>
           <article id="settlement"><b>结</b><div><strong>结算会同时纳入两类销售</strong><p>勾选普通销售和快速售出，确认利润比例后生成锁定的阶段账单。</p></div></article>
         </div>
       </section>
@@ -83,7 +83,8 @@ function back() {
       <section class="manual-section" data-ai-id="user-manual-faq">
         <h2>常见问题</h2>
         <div class="faq-list">
-          <details data-ai-id="user-manual-faq-quick-sale-cost"><summary>快速售出不关联库存可以吗？</summary><p>可以。仍需填写商品名、数量、本单成本、成交总价和卖出人；不会扣库存，也不会创建商品。</p></details>
+          <details data-ai-id="user-manual-faq-quick-sale-cost"><summary>快速售出不关联库存可以吗？</summary><p>可以。仍需填写商品名、数量、本单成本、成交总价和卖出人，并为未关联库存的商品选择实际付款人和成本承担成员；承担合计必须等于该商品的本单成本，可添加多人并均摊。不会扣库存，也不会创建商品。</p></details>
+          <details data-ai-id="user-manual-faq-transaction-status"><summary>交易列表为什么看不到已结账或已撤销记录？</summary><p>销售和其他费用默认显示待结账记录，可在“记录状态”中切换到已结账、已撤销或全部。已结账表示记录已纳入阶段账单，不能撤销。</p></details>
           <details data-ai-id="user-manual-faq-inventory"><summary>为什么普通销售里的可卖数量变少了？</summary><p>除普通销售和损坏/丢失外，已关联库存的未撤销快速售出也会占用并扣减可卖库存。</p></details>
           <details data-ai-id="user-manual-faq-reverse"><summary>能撤销已结账交易吗？</summary><p>不能。已结账交易不能直接撤销，需要通过既有的结算调整流程处理。</p></details>
         </div>
