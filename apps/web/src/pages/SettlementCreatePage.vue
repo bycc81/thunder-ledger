@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { showFailToast, showSuccessToast } from 'vant'
 import { useRoute, useRouter } from 'vue-router'
-import { api, type SettlementExpense, type SettlementMember, type SettlementPreview, type SettlementSale } from '../api'
+import { api, type SettlementExpense, type SettlementMember, type SettlementPreview, type SettlementSale, type SettlementMemberDetails } from '../api'
 import { formatDateTime } from '../utils/dateTime'
 import AppMultiSelect from '../components/AppMultiSelect.vue'
+const SettlementMemberDetailsPopup = defineAsyncComponent(() => import('../components/SettlementMemberDetailsPopup.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -49,6 +50,57 @@ const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
 const showConfirm = ref(false)
+
+const showMemberDetails = ref(false)
+const detailMember = ref<SettlementMember | null>(null)
+const memberDetails = ref<SettlementMemberDetails | null>(null)
+const detailsLoading = ref(false)
+const detailsError = ref('')
+const detailsCache = new Map<string, SettlementMemberDetails>()
+let detailsRequestVersion = 0
+const detailResult = computed(() => step.value === 3 ? preview.value?.members.find((member) => member.userId === detailMember.value?.id) : undefined)
+const detailExpected = computed(() => ({ costTotal: step.value === 3 ? preview.value?.costTotal ?? costTotal.value : costTotal.value, costShare: detailResult.value?.costShare ?? costs.value[detailMember.value?.id ?? ''] ?? '0.00' }))
+function invalidateDetails() {
+  detailsRequestVersion += 1
+  detailsCache.clear()
+  showMemberDetails.value = false
+  memberDetails.value = null
+}
+async function fetchMemberDetails(force = false) {
+  if (!detailMember.value || !showMemberDetails.value) return
+  const version = ++detailsRequestVersion
+  const selected = payload()
+  const selection = { saleIds: [...selected.saleIds], quickSaleIds: [...selected.quickSaleIds], expenseIds: [...selected.expenseIds] }
+  const memberId = detailMember.value.id
+  const cacheKey = JSON.stringify([batchId.value, memberId, ...[selection.saleIds, selection.quickSaleIds, selection.expenseIds].map((ids) => [...ids].sort())])
+  detailsError.value = ''
+  memberDetails.value = null
+  const cached = force ? undefined : detailsCache.get(cacheKey)
+  if (cached) { memberDetails.value = cached; detailsLoading.value = false; return }
+  detailsLoading.value = true
+  try {
+    const { data } = await api.post<SettlementMemberDetails>(`/batches/${batchId.value}/settlements/members/${memberId}/details`, selection)
+    if (version !== detailsRequestVersion || !showMemberDetails.value) return
+    detailsCache.set(cacheKey, data)
+    memberDetails.value = data
+  } catch (requestError: unknown) {
+    if (version !== detailsRequestVersion || !showMemberDetails.value) return
+    detailsError.value = (requestError as { response?: { data?: { message?: string } } }).response?.data?.message || '明细加载失败，请重试。'
+  } finally { if (version === detailsRequestVersion) detailsLoading.value = false }
+}
+function openMemberDetails(memberId: string) {
+  detailMember.value = members.value.find((member) => member.id === memberId) ?? null
+  if (!detailMember.value) return
+  showMemberDetails.value = true
+  void fetchMemberDetails()
+}
+function openInventoryReference(productId: string) {
+  // 在独立页面查看现有库存，避免离开结算后丢失选择和利润比例。
+  const href = router.resolve(`/batches/${batchId.value}/inventory/${productId}`).href
+  window.open(href, '_blank', 'noopener')
+}
+watch(showMemberDetails, (show) => { if (!show) detailsRequestVersion += 1 }, { flush: 'sync' })
+onBeforeUnmount(() => { detailsRequestVersion += 1 })
 
 const selectedSaleSet = computed(() => new Set(selectedSales.value))
 const selectedQuickSaleSet = computed(() => new Set(selectedQuickSales.value))
@@ -95,6 +147,7 @@ function equalProfits() {
 }
 
 async function load() {
+  invalidateDetails()
   loading.value = true
   error.value = ''
   try {
@@ -162,6 +215,7 @@ async function next() {
     }
     submitting.value = true
     try {
+      invalidateDetails()
       const { data } = await api.post<{ costTotal: string; costShares: Array<{ userId: string; amount: string }> }>(`/batches/${batchId.value}/settlements/recommendation`, { saleIds: selectedSales.value, quickSaleIds: selectedQuickSales.value })
       costTotal.value = data.costTotal
       for (const share of data.costShares) costs.value[share.userId] = share.amount
@@ -181,6 +235,7 @@ async function next() {
     }
     submitting.value = true
     try {
+      invalidateDetails()
       preview.value = (await api.post<SettlementPreview>(`/batches/${batchId.value}/settlements/preview`, payload())).data
       step.value = 3
     } catch (requestError: unknown) {
@@ -209,6 +264,7 @@ async function confirm() {
 
 function back() {
   if (step.value > 1) {
+    invalidateDetails()
     step.value -= 1
     return
   }
@@ -267,7 +323,7 @@ onMounted(load)
         <p class="muted">成本承担和实际付款人根据采购记录与商品移动平均成本自动计算，结算时不能修改。</p>
         <div class="list" data-ai-id="settlement-auto-cost-breakdown">
           <div class="cost-total"><span>本次商品成本</span><strong>¥{{ costTotal }}</strong></div>
-          <div v-for="member in members" :key="member.id" class="readonly-row" :data-ai-id="`settlement-cost-share-${member.id}`"><span>{{ member.username }} 承担成本</span><b>¥{{ costs[member.id] || '0.0' }}</b></div>
+          <button v-for="member in members" :key="member.id" type="button" class="readonly-row cost-details-trigger" :data-ai-id="`settlement-cost-share-${member.id}`" @click="openMemberDetails(member.id)"><span>{{ member.username }} 承担成本</span><span class="cost-tail"><b>¥{{ costs[member.id] || '0.0' }}</b><span aria-hidden="true">›</span></span></button>
         </div>
         <header class="section-head"><h2>本次利润怎么分</h2></header>
         <div class="list" data-ai-id="settlement-profit-allocation">
@@ -278,17 +334,20 @@ onMounted(load)
         <h2>账单预览</h2>
         <div class="summary" data-ai-id="settlement-preview"><div><small>销售额</small><strong>¥{{ currentPreview.saleTotal }}</strong></div><div><small>平台手续费</small><strong>¥{{ currentPreview.serviceFeeTotal }}</strong></div><div><small>净收款</small><strong data-ai-id="settlement-preview-net-receipts">¥{{ netReceipts }}</strong></div><div><small>商品成本</small><strong>¥{{ currentPreview.costTotal }}</strong></div><div><small>其他费用</small><strong>¥{{ currentPreview.expenseTotal }}</strong></div><div><small>本次{{ currentPreview.isLoss ? '亏损' : '利润' }}</small><strong :class="{ loss: currentPreview.isLoss }">¥{{ currentPreview.profitTotal }}</strong></div></div>
         <h2 class="result-title">本次结果</h2>
-        <div class="list" data-ai-id="settlement-preview-member-results"><article v-for="member in currentPreview.members" :key="member.userId" class="result-row" :data-ai-id="`settlement-preview-member-result-${member.userId}`"><div class="result-main"><div><strong>{{ member.username }}</strong><small class="result-formula">{{ settlementFormula(member) }}</small></div><b :class="member.direction">{{ member.direction === 'receivable' ? `应收 ¥${member.net}` : member.direction === 'payable' ? `应付 ¥${member.net.replace('-', '')}` : '已结清' }}</b></div><details class="result-details" :data-ai-id="`settlement-preview-member-details-${member.userId}`"><summary>查看计算明细</summary><div class="calculation-detail"><span>承担商品成本 ¥{{ member.costShare }}</span><span>采购付款 ¥{{ member.purchasesPaid }}</span></div></details></article></div>
+        <div class="list" data-ai-id="settlement-preview-member-results"><article v-for="member in currentPreview.members" :key="member.userId" class="result-row" :data-ai-id="`settlement-preview-member-result-${member.userId}`"><div class="result-main"><div><strong>{{ member.username }}</strong><small class="result-formula">{{ settlementFormula(member) }}</small></div><b :class="member.direction">{{ member.direction === 'receivable' ? `应收 ¥${member.net}` : member.direction === 'payable' ? `应付 ¥${member.net.replace('-', '')}` : '已结清' }}</b></div><button type="button" class="result-details detail-button" :data-ai-id="`settlement-preview-member-details-${member.userId}`" @click="openMemberDetails(member.userId)">查看计算明细 <span aria-hidden="true">›</span></button></article></div>
         <h2 class="result-title">转账建议</h2>
          <div class="list transfer-list" data-ai-id="settlement-preview-transfers"><van-empty v-if="!currentPreview.transfers.length" description="无需转账" /><div v-for="transfer in currentPreview.transfers" :key="`${transfer.payerUserId}-${transfer.payeeUserId}`" class="transfer-row" :data-ai-id="`settlement-transfer-${transfer.payerUserId}-${transfer.payeeUserId}`"><div class="transfer-route"><strong>{{ transfer.payerUsername }}</strong><span>转给</span><strong>{{ transfer.payeeUsername }}</strong></div><b>¥{{ transfer.amount }}</b></div></div>
       </section>
     </main>
     <footer v-if="!loading && !error" class="footer"><van-button block type="primary" :loading="submitting" :disabled="submitting" data-ai-id="settlement-next" @click="next">{{ step === 3 ? '确认账单' : '下一步' }}</van-button></footer>
+    <SettlementMemberDetailsPopup v-model:show="showMemberDetails" :member="detailMember" :expected="detailExpected" :result="detailResult" :profit-total="step === 3 ? preview?.profitTotal : undefined" :details="memberDetails" :loading="detailsLoading" :error="detailsError" @retry="fetchMemberDetails(true)" @inventory="openInventoryReference" />
     <van-dialog v-model:show="showConfirm" title="确认账单" show-cancel-button :confirm-button-text="submitting ? '确认中' : '确认账单'" :confirm-button-disabled="submitting" data-ai-id="settlement-confirm-dialog" @confirm="confirm"><p class="dialog-note">确认后，本次选择的销售、费用和利润比例会锁定，不能再次结账。确认继续？</p><template #footer><div class="dialog-actions"><van-button plain :disabled="submitting" @click="showConfirm = false">取消</van-button><van-button type="primary" :loading="submitting" data-ai-id="settlement-confirm" @click="confirm">确认账单</van-button></div></template></van-dialog>
   </div>
 </template>
 
 <style scoped>
+.cost-details-trigger{width:100%;border:0;background:#fff;text-align:left;color:#172033;font:inherit;cursor:pointer}.cost-tail{display:flex;align-items:center;gap:12px;white-space:nowrap}.cost-tail>span{color:#8993a7}.detail-button{display:flex;align-items:center;gap:8px;min-height:44px;border:0;background:transparent;padding:0;color:#536078;font:inherit;font-size:12px;cursor:pointer}.cost-details-trigger:focus-visible,.detail-button:focus-visible{outline:2px solid #3657c8;outline-offset:-2px}
+
 .sale-filters{overflow:hidden;border-radius:10px;background:#fff}.sale-filters :deep(.van-search){padding:10px 12px}.sale-filters :deep(.van-search__content){min-height:44px}.sale-type-filter{display:flex;align-items:center;gap:12px;padding:0 12px 12px;font-size:14px;color:#172033}.sale-type-filter>span{flex:none}.sale-type-options{display:flex;flex:1;min-width:0;overflow:hidden;border:1px solid #cfd6e2;border-radius:8px}.sale-type-options button{flex:1;min-width:0;min-height:44px;padding:0 4px;border:0;border-right:1px solid #e4e8f0;background:#fff;color:#536078;font-size:13px;cursor:pointer}.sale-type-options button:last-child{border-right:0}.sale-type-options button[aria-pressed="true"]{background:#edf1ff;color:#3657c8;font-weight:600}.sale-type-options button:focus-visible{outline:2px solid #3657c8;outline-offset:-2px}.member-filter{padding:0 12px 12px}.filter-summary{margin:8px 0;color:#71809a;font-size:12px;line-height:1.5}.text-button:disabled{color:#8993a7}
 .settlement-create-page{min-height:100vh;padding-bottom:80px;background:#f5f7fb}.settlement-create-page :deep(.van-nav-bar){position:sticky;top:0;z-index:2}.content{padding:16px}.steps{display:flex;justify-content:space-between;margin:2px 0 18px;color:#8993a7;font-size:12px}.steps .active{color:#3657c8}.section-head{display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px}.content h2{margin:0;font-size:17px}.text-button{min-width:44px;min-height:44px;border:0;background:transparent;color:#3657c8;font:inherit}.list{overflow:hidden;border-radius:10px;background:#fff}.choice-row,.field-row{display:flex;min-height:62px;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #e4e8f0}.choice-row:last-child,.field-row:last-child,.result-row:last-child{border:0}.choice-row input{width:20px;height:20px;accent-color:#3657c8}.choice-row span,.result-main>div{min-width:0;flex:1}.choice-row strong,.choice-row small,.result-main strong,.result-main small{display:block}.choice-row small,.result-main small,.muted{margin-top:5px;color:#71809a;font-size:12px;line-height:1.45}.choice-row b{white-space:nowrap;font-size:14px}.choice-row.disabled{opacity:.48}.field-row{min-height:62px;justify-content:space-between}.readonly-row{display:flex;min-height:52px;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #e4e8f0}.readonly-row:last-child{border:0}.readonly-row b{font-size:14px}.cost-total{display:flex;justify-content:space-between;padding:12px;border-bottom:1px solid #e4e8f0;color:#536078}.cost-total strong{color:#172033}.field-row :deep(.van-cell){width:116px;height:38px;min-height:38px;padding:0 10px;border:1px solid #cfd6e2;border-radius:8px}.field-row :deep(.van-field__body),.field-row :deep(.van-field__control){height:36px;min-height:36px;line-height:36px;font-size:16px}.percent{display:flex;width:124px;align-items:center;gap:4px}.percent :deep(.van-cell){width:100px}.summary{display:grid;grid-template-columns:1fr 1fr;gap:1px;overflow:hidden;border-radius:10px;background:#e4e8f0}.summary div{padding:12px;background:#fff}.summary small,.summary strong{display:block}.summary small{color:#71809a;font-size:12px}.summary strong{margin-top:6px;font-size:17px}.loss,.payable{color:#b42318}.receivable{color:#15803d}.result-title{margin:22px 0 8px!important}.result-row{border-bottom:1px solid #e4e8f0}.result-main{display:flex;min-height:66px;align-items:center;gap:10px;padding:10px 12px}.result-main b{white-space:nowrap;font-size:14px}.result-formula{overflow-wrap:anywhere}.result-details{border-top:0}.result-details summary{position:relative;min-height:44px;padding:0 12px;cursor:pointer;color:#536078;font-size:13px;line-height:44px}.result-details summary::before{position:absolute;top:0;left:12px;width:48px;border-top:1px solid #e4e8f0;content:''}.calculation-detail{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 12px 12px;color:#71809a;font-size:12px;line-height:1.45}.transfer-list :deep(.van-empty){padding:12px}.transfer-row{display:grid;grid-template-columns:minmax(0,1fr) auto;min-height:62px;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid #e4e8f0}.transfer-row:last-child{border:0}.transfer-route{display:flex;min-width:0;align-items:center;gap:7px;flex-wrap:wrap;color:#536078;font-size:13px}.transfer-route strong{color:#172033;font-size:14px;overflow-wrap:anywhere}.transfer-row b{white-space:nowrap;color:#3657c8;font-size:14px}.footer{position:fixed;right:0;bottom:0;left:0;z-index:3;max-width:430px;margin:auto;padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #e4e8f0;background:#fff}.footer :deep(.van-button){min-height:44px}.dialog-note{margin:0;padding:0 16px;color:#536078;line-height:1.5}.dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}.dialog-actions :deep(.van-button){min-height:44px}.state{display:grid;min-height:60vh;place-items:center}
 </style>

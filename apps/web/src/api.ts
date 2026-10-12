@@ -50,3 +50,17 @@ export async function uploadWorkspaceImage(workspaceId: string, file: File, onPr
 export async function deleteWorkspaceImage(workspaceId: string, assetId: string): Promise<void> {
   await api.delete(`/workspaces/${workspaceId}/assets/${assetId}`);
 }
+
+export type SettlementMemberDetails = {
+  member: { id: string; username: string }
+  totals: { costTotal: string; costShare: string; purchasesPaid: string; expensesPaid: string; salesReceived: string }
+  transactions: Array<{
+    id: string; source: 'sale' | 'quick_sale'; productId: string | null; productName: string; quantity: number; occurredAt: string
+    totalPrice: string; cost: string; serviceFee: string; sellerUserId: string; sellerUsername: string
+    costShare: string | null; purchasesPaid: string | null; netReceipt: string
+    allocations: Array<{ userId: string; username: string; type: 'payer' | 'burden'; amount: string }>
+    quickItems: Array<{ id: string; name: string; quantity: number; cost: string; consumptions: Array<{ id: string; productId: string; productName: string; quantity: number; consumedCost: string }> }>
+  }>
+  expenses: Array<{ id: string; saleId: string | null; quickSaleId: string | null; name: string; amount: string; occurredAt: string }>
+  issues: Array<{ source: 'sale' | 'quick_sale'; saleId: string; message: string }>
+}
