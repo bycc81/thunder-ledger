@@ -108,6 +108,13 @@ onMounted(load);
             <strong>{{ item.name }}</strong>
             <small v-if="item.consumptions.length">关联库存：{{ item.consumptions.map((entry) => `${entry.productName} ×${entry.quantity}`).join('、') }}</small>
             <small v-else>未关联库存</small>
+            <div class="cost-ownership" :data-ai-id="`quick-sale-detail-item-${item.id}-ownership`">
+              <small v-if="item.costAllocationSource === 'inventory'">付款及成本承担沿用关联库存</small>
+              <template v-else>
+                <small v-if="item.costAllocationSource === 'legacy_seller'">历史记录：付款及成本承担默认归属卖出人</small>
+                <small v-for="allocation in item.costAllocations" :key="`${allocation.allocationType}-${allocation.userId}`" :data-ai-id="`quick-sale-detail-item-${item.id}-allocation-${allocation.allocationType}-${allocation.userId}`">{{ allocation.allocationType === 'payer' ? '付款人' : '成本承担' }}：{{ allocation.username }} · ¥{{ allocation.amount }}</small>
+              </template>
+            </div>
           </div>
           <div class="item-summary">
             <span>数量 <b>{{ item.quantity }} 件</b></span>
@@ -153,7 +160,7 @@ onMounted(load);
 
     <van-dialog v-model:show="showReverse" title="撤销快速售出" show-cancel-button :show-confirm-button="false" data-ai-id="quick-sale-reverse-dialog">
       <template #default>
-        <div class="reverse-form"><van-field v-model="reverseReason" label="撤销原因" type="textarea" rows="2" placeholder="请填写原因" /></div>
+        <div class="reverse-form"><p class="notice" data-ai-id="quick-sale-reversal-notice">撤销后会恢复关联库存，并同步撤销本笔销售尚未撤销的关联其他费用。已纳入账单的销售或关联费用不能撤销。</p><van-field v-model="reverseReason" label="撤销原因" type="textarea" rows="2" placeholder="请填写原因" /></div>
       </template>
       <template #footer>
         <div class="dialog-actions">

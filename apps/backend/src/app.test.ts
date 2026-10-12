@@ -7,7 +7,7 @@ import { compareInventoryTimelineEvents } from './cost-ledger.js';
 import { hasInventorySales, isSameOccurredAt, purchaseBusinessDate, purchaseCorrectionFixedFields } from './inventory.js';
 import { formatReportDateTime } from './reports.js';
 import { calculateSettlementMemberNet, settlementProfitPercentageBasisPoints } from './settlements.js';
-import { split as splitQuickSaleCost } from './quick-sales.js';
+import { parseItems as parseQuickSaleItems, split as splitQuickSaleCost } from './quick-sales.js';
 import { asCents, calculateServiceFeeCents } from './sales-expenses.js';
 import { allocate as allocateGroupPurchaseCost } from './product-groups.js';
 
@@ -86,6 +86,32 @@ test('quick sale cost split keeps integer conservation and deterministic orderin
   const none = splitQuickSaleCost(1234, new Map());
   assert.equal(none.size, 0);
 });
+test('unlinked quick sale items require explicit payer and conserved cost shares', () => {
+  const payer = '00000000-0000-4000-8000-000000000001';
+  const other = '00000000-0000-4000-8000-000000000002';
+  const item = { name: '临时商品', quantity: 1, cost: '10.01', inventoryConsumptions: [], payerUserId: payer, costShares: [{ userId: payer, amount: '5.00' }, { userId: other, amount: '5.01' }] };
+  const parsed = parseQuickSaleItems([item]);
+  assert.equal(parsed?.[0].payerUserId, payer);
+  assert.deepEqual(parsed?.[0].costShares, [{ userId: payer, amountCents: 500 }, { userId: other, amountCents: 501 }]);
+  for (const invalid of [
+    { ...item, payerUserId: undefined }, { ...item, costShares: undefined }, { ...item, costShares: [] },
+    { ...item, costShares: [{ userId: payer, amount: '10.00' }] },
+    { ...item, costShares: [{ userId: payer, amount: '-1.00' }, { userId: other, amount: '11.01' }] },
+    { ...item, costShares: [{ userId: payer, amount: '10.001' }] },
+    { ...item, costShares: [{ userId: payer, amount: '5.00' }, { userId: payer.toUpperCase(), amount: '5.01' }] },
+    { ...item, costShares: [null] }, { ...item, inventoryConsumptions: [null] }, null,
+  ]) assert.equal(parseQuickSaleItems([invalid]), null);
+  assert.equal(parseQuickSaleItems([{ ...item, cost: '0.00', costShares: [{ userId: other, amount: '0.00' }] }])?.[0].costShares[0].amountCents, 0);
+});
+
+test('inventory-linked quick sale items reject conflicting manual ownership', () => {
+  const id = '00000000-0000-4000-8000-000000000001';
+  const item = { name: '库存商品', quantity: 1, cost: '10.00', inventoryConsumptions: [{ productId: id, quantity: 1 }] };
+  assert.equal(parseQuickSaleItems([item])?.[0].payerUserId, null);
+  assert.equal(parseQuickSaleItems([{ ...item, payerUserId: id }]), null);
+  assert.equal(parseQuickSaleItems([{ ...item, costShares: [] }]), null);
+});
+
 test('group purchase allows zero total cost and assigns zero to every cost bearer', () => {
   const result = allocateGroupPurchaseCost(0, [
     { userId: 'user-a', amount: 0 },
