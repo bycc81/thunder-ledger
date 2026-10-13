@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, type SettlementDetail } from '../api'
+import { api, type SettlementDetail, type SettlementMemberDetails, type SettlementResultMember } from '../api'
 import { formatDateTime } from '../utils/dateTime'
+const SettlementMemberDetailsPopup = defineAsyncComponent(() => import('../components/SettlementMemberDetailsPopup.vue'))
 const route = useRoute()
 const router = useRouter()
 const batchId = computed(() => String(route.params.id))
@@ -10,6 +11,46 @@ const settlementId = computed(() => String(route.params.settlementId))
 const detail = ref<SettlementDetail | null>(null)
 const loading = ref(true)
 const error = ref('')
+const showMemberDetails = ref(false)
+const detailMember = ref<{ id: string; username: string } | null>(null)
+const memberDetails = ref<SettlementMemberDetails | null>(null)
+const detailsLoading = ref(false)
+const detailsError = ref('')
+const detailsCache = new Map<string, SettlementMemberDetails>()
+let detailsRequestVersion = 0
+let loadVersion = 0
+const detailResult = computed<SettlementResultMember | undefined>(() => detail.value?.members.find((member) => member.userId === detailMember.value?.id))
+const detailExpected = computed(() => ({ costTotal: detail.value?.costTotal || '0.00', costShare: detailResult.value?.costShare || '0.00' }))
+async function fetchMemberDetails(force = false) {
+  if (!detailMember.value || !showMemberDetails.value) return
+  const memberId = detailMember.value.id
+  const version = ++detailsRequestVersion
+  const key = `${batchId.value}:${settlementId.value}:${memberId}`
+  memberDetails.value = null
+  detailsError.value = ''
+  detailsLoading.value = true
+  const cached = force ? undefined : detailsCache.get(key)
+  if (cached) { memberDetails.value = cached; detailsLoading.value = false; return }
+  try {
+    const { data } = await api.get<SettlementMemberDetails>(`/batches/${batchId.value}/settlements/${settlementId.value}/members/${memberId}/details`)
+    if (version !== detailsRequestVersion || !showMemberDetails.value) return
+    detailsCache.set(key, data)
+    memberDetails.value = data
+  } catch (requestError) {
+    if (version !== detailsRequestVersion || !showMemberDetails.value) return
+    detailsError.value = (requestError as { response?: { data?: { message?: string } } }).response?.data?.message || '明细加载失败，请重试。'
+  } finally { if (version === detailsRequestVersion) detailsLoading.value = false }
+}
+function openMemberDetails(member: SettlementResultMember) {
+  detailMember.value = { id: member.userId, username: member.username }
+  showMemberDetails.value = true
+  void fetchMemberDetails()
+}
+function openInventoryReference(productId: string) {
+  window.open(router.resolve(`/batches/${batchId.value}/inventory/${productId}`).href, '_blank', 'noopener')
+}
+watch(showMemberDetails, (show) => { if (!show) detailsRequestVersion += 1 }, { flush: 'sync' })
+onBeforeUnmount(() => { detailsRequestVersion += 1; loadVersion += 1 })
 const netReceipts = computed(() => detail.value ? formatMoney(moneyToCents(detail.value.saleTotal) - moneyToCents(detail.value.serviceFeeTotal)) : '0.00')
 function moneyToCents(value: string | null | undefined) {
   const amount = Number(value)
@@ -29,24 +70,32 @@ function settlementFormula(member: { profitAmount: string; costRecovery: string;
   return items.map((item, index) => `${index ? item.cents < 0 ? '− ' : '+ ' : item.cents < 0 ? '− ' : ''}${item.label} ¥${formatMoney(Math.abs(item.cents))}`).join(' ')
 }
 async function load() {
+  const version = ++loadVersion
+  detailsRequestVersion += 1
+  showMemberDetails.value = false
+  detailMember.value = null
+  memberDetails.value = null
+  detailsCache.clear()
+  detail.value = null
   loading.value = true
   error.value = ''
   try {
-    detail.value = (await api.get<SettlementDetail>(`/batches/${batchId.value}/settlements/${settlementId.value}`)).data
+    const { data } = await api.get<SettlementDetail>(`/batches/${batchId.value}/settlements/${settlementId.value}`)
+    if (version === loadVersion) detail.value = data
   } catch {
-    error.value = '账单详情加载失败，请重试'
+    if (version === loadVersion) error.value = '账单详情加载失败，请重试'
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
-onMounted(load)
+watch([batchId, settlementId], load, { immediate: true })
 </script>
 <template>
   <div class="settlement-detail-page" data-ai-id="settlement-detail-page">
-    <van-nav-bar title="账单详情" left-text="返回" left-arrow @click-left="router.push(`/batches/${batchId}/settlements`)" />
-    <div v-if="loading" class="state"><van-loading /></div>
-    <van-empty v-else-if="error" :description="error"><van-button type="primary" size="small" @click="load">重试</van-button></van-empty>
-    <main v-else-if="detail" class="content">
+    <van-nav-bar data-ai-id="settlement-detail-navigation" title="账单详情" left-text="返回" left-arrow @click-left="router.push(`/batches/${batchId}/settlements`)" />
+    <div v-if="loading" class="state" data-ai-id="settlement-detail-loading"><van-loading /></div>
+    <van-empty v-else-if="error" :description="error" data-ai-id="settlement-detail-error"><van-button type="primary" size="small" data-ai-id="settlement-detail-retry" @click="load">重试</van-button></van-empty>
+    <main v-else-if="detail" class="content" data-ai-id="settlement-detail-content">
       <p class="muted">已确认 · {{ formatDateTime(detail.confirmedAt) }}</p>
       <div class="summary">
         <div data-ai-id="settlement-service-fee-total">
@@ -76,7 +125,7 @@ onMounted(load)
             <div><strong>{{ member.username }}</strong><small class="result-formula">{{ settlementFormula(member) }}</small></div>
             <b :class="member.direction">{{ member.direction === 'receivable' ? `应收 ¥${member.net}` : member.direction === 'payable' ? `应付 ¥${member.net.replace('-', '')}` : '已结清' }}</b>
           </div>
-          <details class="member-result-details" :data-ai-id="`settlement-detail-member-details-${member.userId}`"><summary>查看计算明细</summary><div class="calculation-detail"><span>承担商品成本 ¥{{ member.costShare }}</span><span>采购付款 ¥{{ member.purchasesPaid }}</span></div></details>
+          <button type="button" class="member-result-details" :data-ai-id="`settlement-detail-member-details-${member.userId}`" @click="openMemberDetails(member)">查看计算明细 <span aria-hidden="true">›</span></button>
         </article>
       </section>
       <h2>转账建议</h2>
@@ -110,6 +159,7 @@ onMounted(load)
         </div>
       </section>
     </main>
+    <SettlementMemberDetailsPopup v-model:show="showMemberDetails" mode="confirmed" :member="detailMember" :expected="detailExpected" :result="detailResult" :profit-total="detail?.profitTotal" :details="memberDetails" :loading="detailsLoading" :error="detailsError" @retry="fetchMemberDetails(true)" @inventory="openInventoryReference" />
   </div>
 </template>
 <style scoped>
@@ -233,33 +283,23 @@ onMounted(load)
   overflow-wrap: anywhere;
 }
 .member-result-details {
-  border-top: 0;
-}
-.member-result-details summary {
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
   min-height: 44px;
   padding: 0 12px;
-  cursor: pointer;
+  border: 0;
+  background: #fff;
   color: #536078;
+  text-align: left;
+  font: inherit;
   font-size: 13px;
-  line-height: 44px;
+  cursor: pointer;
 }
-.member-result-details summary::before {
-  position: absolute;
-  top: 0;
-  left: 12px;
-  width: 48px;
-  border-top: 1px solid #e4e8f0;
-  content: '';
-}
-.calculation-detail {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  padding: 0 12px 12px;
-  color: #71809a;
-  font-size: 12px;
-  line-height: 1.45;
+.member-result-details:focus-visible {
+  outline: 2px solid var(--van-primary-color);
+  outline-offset: -2px;
 }
 .loss,
 .payable {
