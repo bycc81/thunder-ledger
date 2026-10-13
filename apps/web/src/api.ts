@@ -52,6 +52,8 @@ export async function deleteWorkspaceImage(workspaceId: string, assetId: string)
 }
 
 export type SettlementMemberDetails = {
+  snapshotStatus?: 'confirmed' | 'legacy'
+  notice?: string
   member: { id: string; username: string }
   totals: { costTotal: string; costShare: string; purchasesPaid: string; expensesPaid: string; salesReceived: string }
   transactions: Array<{

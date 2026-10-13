@@ -76,7 +76,7 @@ function back() {
         <div class="rule-list">
           <article><b>购</b><div><strong>采购形成库存</strong><p>总成本允许为 0；成本承担合计必须等于总成本。</p></div></article>
           <article id="expense"><b>费</b><div><strong>费用最多关联一种交易</strong><p>费用可关联待结账的普通销售或快速售出；关联后会随该交易自动进入结算，撤销销售时也会同步撤销关联费用。需要独立保留的实际支出应记录为独立费用。</p></div></article>
-          <article id="settlement"><b>结</b><div><strong>结算会同时纳入两类销售</strong><p>勾选普通销售和快速售出，确认利润比例后生成锁定的阶段账单。</p></div></article>
+          <article id="settlement"><b>结</b><div><strong>结算会同时纳入两类销售</strong><p>勾选普通销售和快速售出，确认利润比例后生成锁定的阶段账单。账单详情中点击参与人的“查看计算明细”，可查看成本承担、付款归属、费用垫付、销售收款和利润分成。新账单保存确认时明细；历史账单缺失的逐笔分摊会明确提示，不影响原账单金额。</p></div></article>
         </div>
       </section>
 
