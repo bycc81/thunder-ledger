@@ -14,20 +14,27 @@ export const useAuthStore = defineStore('auth', () => {
   const isSystemAdmin = ref(false);
   const error = ref('');
 
-  async function loadCaptcha() {
+  async function loadCaptcha(signal?: AbortSignal) {
     try {
-      const { data } = await api.get<{ captchaId: string; image: string }>('/auth/captcha');
+      const { data } = await api.get<{ captchaId: string; image: string }>('/auth/captcha', { timeout: 10_000, signal });
+      if (!data || typeof data.captchaId !== 'string' || !data.captchaId || typeof data.image !== 'string' || !data.image.startsWith('data:image/')) {
+        throw new Error('Invalid captcha response');
+      }
       captchaId.value = data.captchaId;
       captchaImage.value = data.image;
       captchaCode.value = '';
+      if (error.value === '验证码加载失败') error.value = '';
+      return true;
     } catch {
+      if (signal?.aborted) return false;
       error.value = '验证码加载失败';
+      return false;
     }
   }
 
   async function restore() {
     try {
-      const { data } = await api.get<{ username?: string; superAdmin?: boolean }>('/auth/session');
+      const { data } = await api.get<{ username?: string; superAdmin?: boolean }>('/auth/session', { timeout: 10_000 });
       if (data.username) username.value = data.username;
       isSystemAdmin.value = Boolean(data.superAdmin);
       loggedIn.value = true;
