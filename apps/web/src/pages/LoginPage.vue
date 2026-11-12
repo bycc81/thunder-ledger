@@ -9,7 +9,7 @@ const auth = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 const waking = ref(false);
-const wakeMessage = ref('打不开验证码时，可尝试唤醒服务，通常需要等待一至两分钟。');
+const wakeMessage = ref('服务未响应时，点击尝试唤醒。');
 let wakeController: AbortController | undefined;
 const pageController = new AbortController();
 const refreshingCaptcha = ref(false);
@@ -119,14 +119,14 @@ async function submit() {
       <van-button block type="primary" native-type="submit" :loading="auth.loading" :disabled="waking || refreshingCaptcha" data-ai-id="login-submit">登录</van-button>
     </van-form>
     <section class="service-wakeup" aria-label="服务连接" data-ai-id="login-service-wakeup">
-      <van-button block plain type="primary" native-type="button" :loading="waking" loading-text="正在唤醒…" :disabled="waking || auth.loading || refreshingCaptcha" data-ai-id="login-service-wakeup-button" @click="wakeService">唤醒服务</van-button>
-      <p role="status" aria-live="polite" data-ai-id="login-service-wakeup-status">{{ wakeMessage }}</p>
+      <van-button class="wakeup-button" plain type="primary" native-type="button" :loading="waking" loading-text="唤醒中…" :disabled="waking || auth.loading || refreshingCaptcha" data-ai-id="login-service-wakeup-button" @click="wakeService">唤醒服务</van-button>
+      <p v-if="wakeMessage" role="status" aria-live="polite" data-ai-id="login-service-wakeup-status">{{ wakeMessage }}</p>
     </section>
   </main>
 </template>
 
 <style scoped>
-.login-page { width:min(100%,480px); min-height:100vh; margin:0 auto; padding:72px 16px 24px; background:#f5f7fb; }
+.login-page { display:flex; flex-direction:column; width:min(100%,480px); min-height:100vh; min-height:100dvh; margin:0 auto; padding:72px 16px max(16px, env(safe-area-inset-bottom)); background:#f5f7fb; }
 .login-brand { display:flex; align-items:center; justify-content:center; gap:10px; color:#172033; font-size:16px; }
 .login-mark { display:grid; width:36px; height:36px; place-items:center; border-radius:9px; background:#3657c8; color:#fff; font-size:13px; font-weight:800; }
 h1 { margin:28px 0 22px; color:#172033; font-size:24px; text-align:center; }
@@ -134,6 +134,8 @@ h1 { margin:28px 0 22px; color:#172033; font-size:24px; text-align:center; }
 .captcha { width:88px; height:34px; object-fit:contain; cursor:pointer; }
 .captcha-refresh { display:flex; align-items:center; justify-content:center; min-width:88px; min-height:44px; padding:0; border:0; background:transparent; cursor:pointer; }
 .captcha-refresh:disabled { cursor:default; opacity:.6; }
-.service-wakeup p { margin:10px 16px 0; color:#596579; font-size:13px; line-height:1.6; }
+.service-wakeup { display:flex; flex-direction:column; align-items:flex-end; margin-top:auto; padding-top:24px; padding-bottom:44px; }
+.service-wakeup p { max-width:280px; margin:6px 8px 0; color:#596579; font-size:13px; line-height:1.6; text-align:right; }
+.service-wakeup .wakeup-button { margin-top:0; padding:0 12px; border:1px solid #bcc7e6; border-radius:6px; background:#fff; font-size:13px; }
 .login-error { margin:12px 16px 0; color:#b42318; font-size:13px; }
 </style>

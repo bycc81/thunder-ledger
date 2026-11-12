@@ -77,10 +77,17 @@ try {
       for (const id of ids) { assert.match(id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/); assert.ok(registry.includes(`| ${id} |`)); observed.add(id); }
       const box = await button.boundingBox();
       assert.ok(box.height >= 44 && box.y + box.height <= viewport.height, 'Wake button visible and touchable');
+      assert.ok(box.width <= 120 && box.x + box.width >= viewport.width - 32 && box.y >= viewport.height - 200, 'Compact button at bottom right');
+      const statusBox = await status.boundingBox();
+      assert.ok(statusBox.y >= box.y + box.height && viewport.height - statusBox.y - statusBox.height >= 59, 'Explanation below button with raised bottom spacing');
+      const submitBox = await byId('login-submit').boundingBox();
+      assert.ok(box.y >= submitBox.y + submitBox.height, 'Footer does not cover login');
       await page.screenshot({ path: path.join(output, `${viewport.width}-${name}.png`), animations: 'disabled' });
     };
     await page.goto(`${base}/login`);
     await poll(async () => await button.isVisible() && await button.isEnabled(), 'Wake entry usable after initial 429');
+    assert.equal(await status.innerText(), '服务未响应时，点击尝试唤醒。', 'Initial footer explains the wake button');
+    assert.equal(await button.evaluate(node => getComputedStyle(node).borderTopWidth), '1px', 'Compact button has a visible border');
     await snapshot('initial-error');
     await byId('login-username').locator('input').fill('fixture-user');
     await byId('login-password').locator('input').fill('fixture-password');
@@ -102,6 +109,12 @@ try {
     assert.equal(await byId('login-password').locator('input').inputValue(), 'fixture-password');
     assert.equal(posts.length, 0, 'Wake never submits credentials');
     await snapshot('recovered');
+    await page.setViewportSize({ width: viewport.width, height: 500 });
+    const shortButton = await button.boundingBox();
+    const shortForm = await byId('login-form').boundingBox();
+    assert.ok(shortButton.y >= shortForm.y + shortForm.height, 'Short viewport scrolls without covering form');
+    await page.screenshot({ path: path.join(output, `${viewport.width}-short.png`), fullPage: true, animations: 'disabled' });
+    await page.setViewportSize(viewport);
 
     // Ordinary login still sends the original credential/captcha contract.
     await byId('login-captcha').locator('input').fill('1234');

@@ -12,6 +12,6 @@
 | login-captcha-refresh | 刷新验证码按钮 |
 | login-error | 表单错误 |
 | login-submit | 登录 |
-| login-service-wakeup | 服务唤醒区域 |
-| login-service-wakeup-button | 唤醒服务按钮 |
-| login-service-wakeup-status | 状态与等待说明 |
+| login-service-wakeup | 登录页右下角服务唤醒区域 |
+| login-service-wakeup-button | 细边框小号唤醒服务按钮，点击高度至少 44px |
+| login-service-wakeup-status | 初始用途说明及点击后的状态与等待说明 |
