@@ -9,7 +9,8 @@ import path from 'node:path';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const output = fileURLToPath(new URL('./evidence/', import.meta.url));
 await mkdir(output, { recursive: true });
-const registry = await readFile(new URL('./data-ai-id-registry.md', import.meta.url), 'utf8');
+const registry = await readFile(new URL('./data-ai-id-registry.md', import.meta.url), 'utf8')
+  + await readFile(new URL('../20261119-service-diagnostics/data-ai-id-registry.md', import.meta.url), 'utf8');
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE_PATH ? pathToFileURL(process.env.PLAYWRIGHT_MODULE_PATH) : 'playwright');
 const server = createServer(async (req, res) => {
   try {
@@ -77,7 +78,7 @@ try {
       for (const id of ids) { assert.match(id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/); assert.ok(registry.includes(`| ${id} |`)); observed.add(id); }
       const box = await button.boundingBox();
       assert.ok(box.height >= 44 && box.y + box.height <= viewport.height, 'Wake button visible and touchable');
-      assert.ok(box.width <= 120 && box.x + box.width >= viewport.width - 32 && box.y >= viewport.height - 200, 'Compact button at bottom right');
+      assert.ok(box.width <= 120 && box.x + box.width >= viewport.width - 32 && box.y >= viewport.height - 300, 'Compact button at bottom right above diagnostics');
       const statusBox = await status.boundingBox();
       assert.ok(statusBox.y >= box.y + box.height && viewport.height - statusBox.y - statusBox.height >= 59, 'Explanation below button with raised bottom spacing');
       const submitBox = await byId('login-submit').boundingBox();
@@ -198,6 +199,7 @@ try {
   await nativeButton.click();
   await page.waitForFunction(() => document.querySelector('[data-ai-id="login-service-wakeup-status"]')?.textContent.includes('10 秒后'), undefined, { timeout: 20_000 });
   assert.equal(nativeHealthCalls, 1, 'Health timeout enters delayed retry');
+  assert.match(await page.locator('[data-ai-id="login-service-diagnostics-report"]').inputValue(), /请求等待超时/, 'Native timeout is retained in diagnostics');
   await page.clock.runFor(10_000);
   await poll(() => nativeHealthCalls === 2, 'Second health request started');
   const cancelled = page.waitForEvent('requestfailed', req => req.url().endsWith('/api/healthz'));
